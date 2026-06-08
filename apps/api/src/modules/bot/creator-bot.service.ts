@@ -112,7 +112,7 @@ export class CreatorBotService implements OnModuleInit {
       .text('✗ Cancel', 'createform:cancel');
 
     await ctx.reply(
-      `📄 *Create Form*\n\nEach form costs *${formatNaira(100_000)}* to activate\\.\nBuild for free — pay only when ready\\.`,
+      `📄 *Create Form*\n\nBuild your form and activate it instantly\\.\nResponses count toward your plan limit\\.`,
       { parse_mode: 'MarkdownV2', reply_markup: keyboard },
     );
   }
@@ -177,7 +177,7 @@ export class CreatorBotService implements OnModuleInit {
     if (data === 'noop')                return;
 
     if (data.startsWith('qtype:'))               return this.onTypeSelected(ctx, data.slice(6));
-    if (data.startsWith('pay:'))                 return this.initiatePayment(ctx, data.slice(4));
+    if (data.startsWith('form:activate:'))       return this.activateForm(ctx, data.slice(14));
     if (data.startsWith('form:view:'))           return this.showFormCard(ctx, data.slice(10));
     if (data.startsWith('form:share:'))          return this.shareLink(ctx, data.slice(11));
     if (data.startsWith('form:close:confirm:'))  return this.closeForm(ctx, data.slice(19));
@@ -374,7 +374,7 @@ export class CreatorBotService implements OnModuleInit {
       .join('\n');
 
     const keyboard = new InlineKeyboard()
-      .text(`💳 Pay ${formatNaira(100_000)} to Activate`, `pay:${form.id}`).row()
+      .text('🚀 Activate Form', `form:activate:${form.id}`).row()
       .text('➕ Add More Questions', 'preview:addmore').row()
       .text('🗑 Delete Form', `form:delete:${form.id}`);
 
@@ -384,24 +384,32 @@ export class CreatorBotService implements OnModuleInit {
     );
   }
 
-  // ─── Payment ──────────────────────────────────────────────────────────────────
+  // ─── Form activation ─────────────────────────────────────────────────────────
 
-  private async initiatePayment(ctx: Context, formId: string) {
+  private async activateForm(ctx: Context, formId: string) {
     try {
-      const { miniAppUrl } = await this.paymentService.initPayment(formId, tid(ctx));
+      const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
+      const form = await this.formService.findById(formId);
+      if (form.creatorId !== user.id) return ctx.reply('Form not found\\.', { parse_mode: 'MarkdownV2' });
+
+      await this.formService.transition(formId, user.id, 'ACTIVE');
+
+      const shareToken = form.shareToken ?? (await this.formService.findById(formId)).shareToken;
+      const shareLink = shareToken
+        ? `https://t.me/${process.env.TELEGRAM_FILLER_BOT_USERNAME}?start=${shareToken}`
+        : '_(share link unavailable)_';
 
       const keyboard = new InlineKeyboard()
-        .webApp(`💳 Pay ${formatNaira(100_000)}`, miniAppUrl);
+        .text('📤 Share Link', `form:share:${formId}`).row()
+        .text('📊 View Responses', `form:responses:${formId}`);
 
       await this.doEdit(ctx,
-        `💳 *Activate Your Form*\n\nTap below to complete payment\\. Your form goes live instantly after payment\\.`,
+        `✅ *Form Activated\\!*\n\n*${esc(form.title)}* is now live\\.\n\n🔗 Share: ${esc(shareLink)}`,
         { parse_mode: 'MarkdownV2', reply_markup: keyboard },
       );
     } catch (err: any) {
-      const isAlreadyPaid = err?.status === 409 || err?.response?.statusCode === 409 || err?.message?.includes('already been paid');
-      if (isAlreadyPaid) return ctx.reply('This form is already paid for\\. Use /myforms to view it\\.', { parse_mode: 'MarkdownV2' });
-      this.logger.error('Payment init error', err);
-      await ctx.reply('⚠️ Payment setup failed\\. Please try again\\.', { parse_mode: 'MarkdownV2' });
+      this.logger.error('Form activation error', err);
+      await ctx.reply('⚠️ Could not activate form\\. Please try again\\.', { parse_mode: 'MarkdownV2' });
     }
   }
 
@@ -433,7 +441,7 @@ export class CreatorBotService implements OnModuleInit {
           .text('🔓 Re\\-open Form', `form:reopen:${formId}`).row()
           .text('🗑 Archive', `form:delete:${formId}`);
       } else if (form.status === 'DRAFT' || form.status === 'PAYMENT_PENDING') {
-        keyboard.text(`💳 Pay ${formatNaira(100_000)} to Activate`, `pay:${formId}`);
+        keyboard.text('🚀 Activate Form', `form:activate:${formId}`);
       }
 
       const text = `📄 *${esc(form.title)}*\nStatus: ${esc(statusLabel[form.status] ?? form.status)}\nQuestions: ${form.questions.length}\nResponses: ${responseCount}\nCreated: ${esc(new Date(form.createdAt).toLocaleDateString('en-NG'))}`;
