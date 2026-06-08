@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "prebuild": "prisma generate",
+    "prebuild": "prisma generate && cd ../.. && pnpm turbo run build --filter='./packages/*' && cd apps/api",
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main",
