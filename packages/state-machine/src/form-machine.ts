@@ -1,5 +1,5 @@
 const FORM_TRANSITIONS: Record<string, string[]> = {
-  DRAFT:           ['PAYMENT_PENDING', 'ARCHIVED'],
+  DRAFT:           ['ACTIVE', 'PAYMENT_PENDING', 'ARCHIVED'],
   PAYMENT_PENDING: ['ACTIVE', 'ARCHIVED'],
   ACTIVE:          ['CLOSED'],
   CLOSED:          ['ACTIVE', 'ARCHIVED'],

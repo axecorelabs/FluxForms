@@ -34,9 +34,10 @@ export class FillerBotService implements OnModuleInit {
 
     this.bot = new Bot(token);
 
-    this.bot.command('start', ctx => this.onStart(ctx));
-    this.bot.command('back', ctx => this.onBack(ctx));
-    this.bot.command('cancel', ctx => this.onCancel(ctx));
+    this.bot.command('start',    ctx => this.onStart(ctx));
+    this.bot.command('commands', ctx => this.onCommands(ctx));
+    this.bot.command('back',     ctx => this.onBack(ctx));
+    this.bot.command('cancel',   ctx => this.onCancel(ctx));
     this.bot.on('callback_query:data', ctx => this.onCallback(ctx));
     this.bot.on('message:text', ctx => this.onText(ctx));
 
@@ -52,6 +53,17 @@ export class FillerBotService implements OnModuleInit {
   }
 
   // ─── Commands ────────────────────────────────────────────────────────────────
+
+  private async onCommands(ctx: Context) {
+    await ctx.reply(
+      `📋 *FluxForms Commands*\n\n` +
+      `/commands – Show this message\n` +
+      `/back – Go back to the previous question\n` +
+      `/cancel – Cancel the current form or interview\n\n` +
+      `_To start a form or interview, open the link shared with you by the creator\\._`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
 
   private async onStart(ctx: Context) {
     await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });

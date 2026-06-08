@@ -2,14 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Bot, Context, InlineKeyboard } from 'grammy';
 import { FormService } from '../form/form.service';
 import { QuestionService } from '../question/question.service';
-import { PaymentService } from '../payment/payment.service';
 import { SubscriptionService, PLAN_LABELS, PLAN_PRICES_KOBO } from '../subscription/subscription.service';
 import { BotStateService } from '../bot-state/bot-state.service';
 import { AuthService } from '../auth/auth.service';
 import { ResponseService } from '../response/response.service';
 import { InterviewService } from '../interview/interview.service';
 import { DashboardAuthService } from '../dashboard-auth/dashboard-auth.service';
-import { truncate, formatNaira } from '@fluxforms/utils';
+import { truncate } from '@fluxforms/utils';
 
 const STEP = {
   // Standard form steps
@@ -54,7 +53,6 @@ export class CreatorBotService implements OnModuleInit {
   constructor(
     private readonly formService: FormService,
     private readonly questionService: QuestionService,
-    private readonly paymentService: PaymentService,
     private readonly botStateService: BotStateService,
     private readonly authService: AuthService,
     private readonly responseService: ResponseService,
@@ -72,15 +70,16 @@ export class CreatorBotService implements OnModuleInit {
 
     this.bot = new Bot(token);
 
-    this.bot.command('start', ctx => this.onStart(ctx));
-    this.bot.command('createform', ctx => this.onCreateFormCommand(ctx));
-    this.bot.command('myforms', ctx => this.onMyForms(ctx, 1));
-    this.bot.command('cancel', ctx => this.onCancel(ctx));
-    this.bot.command('form', ctx => this.onFormCommand(ctx));
+    this.bot.command('start',           ctx => this.onStart(ctx));
+    this.bot.command('commands',        ctx => this.onCommands(ctx));
+    this.bot.command('createform',      ctx => this.onCreateFormCommand(ctx));
+    this.bot.command('myforms',         ctx => this.onMyForms(ctx, 1));
+    this.bot.command('cancel',          ctx => this.onCancel(ctx));
+    this.bot.command('form',            ctx => this.onFormCommand(ctx));
     this.bot.command('createinterview', ctx => this.onCreateInterviewCommand(ctx));
-    this.bot.command('myinterviews', ctx => this.onMyInterviews(ctx));
-    this.bot.command('dashboard', ctx => this.onDashboardCommand(ctx));
-    this.bot.command('plan', ctx => this.onPlanCommand(ctx));
+    this.bot.command('myinterviews',    ctx => this.onMyInterviews(ctx));
+    this.bot.command('dashboard',       ctx => this.onDashboardCommand(ctx));
+    this.bot.command('plan',            ctx => this.onPlanCommand(ctx));
     this.bot.on('callback_query:data', ctx => this.onCallback(ctx));
     this.bot.on('message:text', ctx => this.onText(ctx));
 
@@ -100,7 +99,26 @@ export class CreatorBotService implements OnModuleInit {
   private async onStart(ctx: Context) {
     await this.upsertUser(ctx);
     await ctx.reply(
-      `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms your audience fills directly inside Telegram\\.\n\n*Commands:*\n/createform – Build a new form\n/myforms – View your forms`,
+      `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms and AI interviews your audience fills directly inside Telegram\\.\n\n*Forms*\n/createform – Build a new form\n/myforms – View your forms\n\n*AI Interviews*\n/createinterview – Build an AI interview\n/myinterviews – View your interviews\n\n*Account*\n/plan – View your plan and usage\n/dashboard – Open your creator dashboard\n/cancel – Cancel current action`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
+
+  private async onCommands(ctx: Context) {
+    await ctx.reply(
+      `📋 *FluxForms Commands*\n\n` +
+      `*📄 Forms*\n` +
+      `/createform – Build a new form\n` +
+      `/myforms – View and manage your forms\n\n` +
+      `*🤖 AI Interviews*\n` +
+      `/createinterview – Build a conversational AI interview\n` +
+      `/myinterviews – View and manage your interviews\n\n` +
+      `*💳 Account*\n` +
+      `/plan – View your current plan and response usage\n` +
+      `/dashboard – Get a login link to your creator dashboard\n\n` +
+      `*🛠 Utility*\n` +
+      `/cancel – Cancel whatever you're currently doing\n` +
+      `/commands – Show this message`,
       { parse_mode: 'MarkdownV2' },
     );
   }
