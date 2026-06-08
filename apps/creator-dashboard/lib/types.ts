@@ -1,0 +1,72 @@
+export interface Interview {
+  id: string;
+  title: string;
+  type: string;
+  objective: string;
+  context: string | null;
+  status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
+  completedCount: number;
+  shareLink: string | null;
+  createdAt: string;
+  schemaFields: InterviewField[];
+}
+
+export interface InterviewField {
+  id: string;
+  fieldName: string;
+  displayName: string;
+  fieldType: string;
+  description: string;
+  isRequired: boolean;
+  orderIndex: number;
+}
+
+export interface InterviewStats {
+  total: number;
+  completed: number;
+  active: number;
+  interrupted: number;
+}
+
+export interface InterviewSession {
+  id: string;
+  interviewId: string;
+  userTelegramId: string;
+  state: 'ACTIVE' | 'COMPLETED' | 'INTERRUPTED';
+  turnCount: number;
+  startedAt: string;
+  completedAt: string | null;
+  _count?: { messages: number };
+  extractedProfile?: ExtractedEntity[];
+}
+
+export interface SessionDetail extends InterviewSession {
+  messages: InterviewMessage[];
+  extractedProfile: ExtractedEntity[];
+  interview: Interview;
+}
+
+export interface InterviewMessage {
+  id: string;
+  sessionId: string;
+  role: 'USER' | 'AI' | 'SYSTEM';
+  content: string;
+  turnIndex: number;
+  createdAt: string;
+}
+
+export interface ExtractedEntity {
+  id: string;
+  sessionId: string;
+  fieldName: string;
+  value: unknown;
+  confidence: number;
+  lastUpdatedTurn: number;
+}
+
+export interface SearchResult {
+  id: string;
+  userTelegramId: string;
+  completedAt: string | null;
+  similarity: number;
+}

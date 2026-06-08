@@ -1,0 +1,409 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id         String   @id @default(cuid())
+  telegramId String   @unique @map("telegram_id")
+  username   String?
+  firstName  String?  @map("first_name")
+  lastName   String?  @map("last_name")
+  role       Role     @default(FILLER)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  forms            Form[]
+  sessions         Session[]
+  payments         Payment[]
+  interviews       Interview[]
+  subscription     Subscription?
+  dashboardTokens  DashboardToken[]
+
+  @@map("users")
+}
+
+enum Role {
+  CREATOR
+  FILLER
+  BOTH
+  ADMIN
+}
+
+// ─── Forms ───────────────────────────────────────────────────────────────────
+
+model Form {
+  id          String     @id @default(cuid())
+  creatorId   String     @map("creator_id")
+  title       String
+  description String?
+  status      FormStatus @default(DRAFT)
+  shareLink   String?    @unique @map("share_link")
+  shareToken  String?    @unique @map("share_token")
+  closedAt    DateTime?  @map("closed_at")
+  archivedAt  DateTime?  @map("archived_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  creator   User       @relation(fields: [creatorId], references: [id])
+  questions Question[]
+  sessions  Session[]
+  responses Response[]
+  payment   Payment?
+
+  @@index([creatorId])
+  @@index([status])
+  @@map("forms")
+}
+
+enum FormStatus {
+  DRAFT
+  PAYMENT_PENDING
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+// ─── Questions ───────────────────────────────────────────────────────────────
+
+model Question {
+  id         String       @id @default(cuid())
+  formId     String       @map("form_id")
+  text       String
+  type       QuestionType
+  options    Json?
+  isRequired Boolean      @default(true) @map("is_required")
+  orderIndex Int          @map("order_index")
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@unique([formId, orderIndex])
+  @@index([formId])
+  @@map("questions")
+}
+
+enum QuestionType {
+  TEXT
+  NUMBER
+  EMAIL
+  YES_NO
+  MULTIPLE_CHOICE
+}
+
+// ─── Sessions (Standard Forms) ────────────────────────────────────────────────
+
+model Session {
+  id             String       @id @default(cuid())
+  formId         String       @map("form_id")
+  userTelegramId String       @map("user_telegram_id")
+  userId         String?      @map("user_id")
+  state          SessionState @default(ACTIVE)
+  currentIndex   Int          @default(0) @map("current_index")
+  answers        Json         @default("{}")
+  interruptedAt  DateTime?    @map("interrupted_at")
+  submittedAt    DateTime?    @map("submitted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  form     Form      @relation(fields: [formId], references: [id])
+  user     User?     @relation(fields: [userId], references: [id])
+  response Response?
+
+  @@unique([formId, userTelegramId])
+  @@index([userTelegramId])
+  @@index([formId])
+  @@map("sessions")
+}
+
+enum SessionState {
+  ACTIVE
+  REVIEW
+  SUBMITTED
+  INTERRUPTED
+}
+
+// ─── Responses ────────────────────────────────────────────────────────────────
+
+model Response {
+  id          String         @id @default(cuid())
+  sessionId   String         @unique @map("session_id")
+  formId      String         @map("form_id")
+  answers     Json
+  status      ResponseStatus @default(SUBMITTED)
+  submittedAt DateTime       @default(now()) @map("submitted_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  session Session @relation(fields: [sessionId], references: [id])
+  form    Form    @relation(fields: [formId], references: [id])
+
+  @@index([formId])
+  @@map("responses")
+}
+
+enum ResponseStatus {
+  IN_PROGRESS
+  SUBMITTED
+  INVALID
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+
+model Payment {
+  id          String          @id @default(cuid())
+  formId      String          @unique @map("form_id")
+  creatorId   String          @map("creator_id")
+  amount      Int             @default(100000)
+  currency    String          @default("NGN")
+  status      PaymentStatus   @default(PENDING)
+  reference   String          @unique
+  provider    PaymentProvider @default(PAYSTACK)
+  providerRef String?         @map("provider_ref")
+  paidAt      DateTime?       @map("paid_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  form    Form @relation(fields: [formId], references: [id])
+  creator User @relation(fields: [creatorId], references: [id])
+
+  @@index([creatorId])
+  @@map("payments")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  FLUTTERWAVE
+}
+
+// ─── BotState ─────────────────────────────────────────────────────────────────
+
+model BotState {
+  id               String   @id @default(cuid())
+  telegramId       String   @map("telegram_id")
+  botType          BotType  @map("bot_type")
+  conversationStep String?  @map("conversation_step")
+  context          Json     @default("{}")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([telegramId, botType])
+  @@index([telegramId])
+  @@map("bot_states")
+}
+
+enum BotType {
+  CREATOR
+  FILLER
+}
+
+// ─── Interviews ───────────────────────────────────────────────────────────────
+
+model Interview {
+  id             String          @id @default(cuid())
+  creatorId      String          @map("creator_id")
+  title          String
+  type           InterviewType   @default(CUSTOM)
+  objective      String
+  context        String?
+  aiPersona      String?         @map("ai_persona")
+  openingMessage String?         @db.Text @map("opening_message")
+  maxTurns       Int             @default(20) @map("max_turns")
+  status         InterviewStatus @default(DRAFT)
+  shareToken     String?         @unique @map("share_token")
+  shareLink      String?         @unique @map("share_link")
+  completedCount Int             @default(0) @map("completed_count")
+  closedAt       DateTime?       @map("closed_at")
+  archivedAt     DateTime?       @map("archived_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  creator      User               @relation(fields: [creatorId], references: [id])
+  schemaFields InterviewField[]
+  sessions     InterviewSession[]
+
+  @@index([creatorId])
+  @@index([status])
+  @@map("interviews")
+}
+
+enum InterviewType {
+  HIRING
+  LEAD_QUALIFICATION
+  CUSTOMER_FEEDBACK
+  CLIENT_ONBOARDING
+  MARKET_RESEARCH
+  CUSTOM
+}
+
+enum InterviewStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+  ARCHIVED
+}
+
+// ─── Interview Schema Fields ──────────────────────────────────────────────────
+
+model InterviewField {
+  id          String    @id @default(cuid())
+  interviewId String    @map("interview_id")
+  fieldName   String    @map("field_name")
+  displayName String    @map("display_name")
+  fieldType   FieldType @map("field_type")
+  description String
+  isRequired  Boolean   @default(false) @map("is_required")
+  orderIndex  Int       @map("order_index")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@unique([interviewId, fieldName])
+  @@index([interviewId])
+  @@map("interview_fields")
+}
+
+enum FieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  ARRAY
+  RATING
+  ENUM
+}
+
+// ─── Interview Sessions ────────────────────────────────────────────────────────
+
+model InterviewSession {
+  id               String               @id @default(cuid())
+  interviewId      String               @map("interview_id")
+  userTelegramId   String               @map("user_telegram_id")
+  state            InterviewSessionState @default(ACTIVE)
+  turnCount        Int                  @default(0) @map("turn_count")
+  // profileEmbedding stored via raw SQL migration (vector type not supported by Prisma natively)
+  startedAt        DateTime             @default(now()) @map("started_at")
+  completedAt      DateTime?            @map("completed_at")
+  interruptedAt    DateTime?            @map("interrupted_at")
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  interview        Interview         @relation(fields: [interviewId], references: [id])
+  messages         InterviewMessage[]
+  extractedProfile ExtractedEntity[]
+
+  @@unique([interviewId, userTelegramId])
+  @@index([interviewId, state])
+  @@index([userTelegramId])
+  @@map("interview_sessions")
+}
+
+enum InterviewSessionState {
+  ACTIVE
+  COMPLETED
+  INTERRUPTED
+}
+
+// ─── Interview Messages ────────────────────────────────────────────────────────
+
+model InterviewMessage {
+  id         String      @id @default(cuid())
+  sessionId  String      @map("session_id")
+  role       MessageRole
+  content    String      @db.Text
+  turnIndex  Int         @map("turn_index")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, turnIndex])
+  @@map("interview_messages")
+}
+
+enum MessageRole {
+  USER
+  AI
+  SYSTEM
+}
+
+// ─── Extracted Entities ────────────────────────────────────────────────────────
+
+model ExtractedEntity {
+  id              String   @id @default(cuid())
+  sessionId       String   @map("session_id")
+  fieldName       String   @map("field_name")
+  value           Json
+  rawEvidence     String?  @db.Text @map("raw_evidence")
+  confidence      Float    @default(0)
+  lastUpdatedTurn Int      @map("last_updated_turn")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  session InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, fieldName])
+  @@index([sessionId])
+  @@map("extracted_entities")
+}
+
+// ─── Subscriptions ─────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  creatorId          String             @unique @map("creator_id")
+  plan               SubscriptionPlan   @default(FREE)
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime           @map("current_period_start")
+  currentPeriodEnd   DateTime           @map("current_period_end")
+  responseCount      Int                @default(0) @map("response_count")
+  responseLimit      Int                @default(50) @map("response_limit")
+  paystackSubCode    String?            @map("paystack_sub_code")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  creator User @relation(fields: [creatorId], references: [id])
+
+  @@map("subscriptions")
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+// ─── Dashboard Auth Tokens ────────────────────────────────────────────────────
+
+model DashboardToken {
+  id        String    @id @default(cuid())
+  creatorId String    @map("creator_id")
+  token     String    @unique @default(cuid())
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  creator User @relation(fields: [creatorId], references: [id])
+
+  @@index([token])
+  @@map("dashboard_tokens")
+}

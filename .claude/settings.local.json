@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --version)",
+      "Bash(npx turbo *)",
+      "Bash(git init *)",
+      "Bash(echo \"node_modules\\\\n.env\\\\n.env.*\\\\n!.env.example\\\\ndist\\\\n.turbo\\\\n*.tsbuildinfo\\\\n.next\\\\n.vercel\")"
+    ]
+  }
+}
