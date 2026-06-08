@@ -63,7 +63,7 @@ export class CreatorBotService implements OnModuleInit {
     private readonly subscriptionService: SubscriptionService,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     const token = process.env.TELEGRAM_CREATOR_BOT_TOKEN;
     if (!token) {
       this.logger.warn('TELEGRAM_CREATOR_BOT_TOKEN not set — creator bot disabled');
@@ -85,6 +85,8 @@ export class CreatorBotService implements OnModuleInit {
     this.bot.on('message:text', ctx => this.onText(ctx));
 
     this.bot.catch(err => this.logger.error('Bot error', err));
+
+    await this.bot.init();
     this.logger.log('Creator bot initialized (webhook mode)');
   }
 

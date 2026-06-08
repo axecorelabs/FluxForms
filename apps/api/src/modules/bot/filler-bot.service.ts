@@ -25,7 +25,7 @@ export class FillerBotService implements OnModuleInit {
     private readonly interviewSessionService: InterviewSessionService,
   ) {}
 
-  onModuleInit() {
+  async onModuleInit() {
     const token = process.env.TELEGRAM_FILLER_BOT_TOKEN;
     if (!token) {
       this.logger.warn('TELEGRAM_FILLER_BOT_TOKEN not set — filler bot disabled');
@@ -41,6 +41,8 @@ export class FillerBotService implements OnModuleInit {
     this.bot.on('message:text', ctx => this.onText(ctx));
 
     this.bot.catch(err => this.logger.error('Filler bot error', err));
+
+    await this.bot.init();
     this.logger.log('Filler bot initialized (webhook mode)');
   }
 
