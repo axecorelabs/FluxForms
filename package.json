@@ -13,7 +13,15 @@
     "db:studio": "pnpm --filter @fluxforms/api exec prisma studio"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["msgpackr-extract"]
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "msgpackr-extract",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "devDependencies": {
     "turbo": "^2.9.12",
