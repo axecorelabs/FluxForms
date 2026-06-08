@@ -11,11 +11,14 @@ async function bootstrap() {
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Enable CORS for local development from the admin frontend
+  const allowedOrigins = (process.env.CORS_ORIGINS ?? 'http://localhost:3001,http://localhost:3002')
+    .split(',')
+    .map(o => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: ['http://localhost:3002'],
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    // include custom admin header used by the admin frontend
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'x-admin-key'],
     credentials: true,
   });
