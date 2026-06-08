@@ -213,7 +213,7 @@ export class CreatorBotService implements OnModuleInit {
 
     if (data.startsWith('interview:type:'))        return this.onInterviewTypeSelected(ctx, data.slice(15));
     if (data === 'interview:context:skip')         return this.onInterviewContextSkipped(ctx);
-    if (data.startsWith('interview:activate:'))    return this.activateInterview(ctx, data.slice(20));
+    if (data.startsWith('interview:activate:'))    return this.activateInterview(ctx, data.slice(19));
     if (data.startsWith('interview:view:'))        return this.showInterviewCard(ctx, data.slice(15));
     if (data.startsWith('interview:share:'))       return this.shareInterviewLink(ctx, data.slice(16));
     if (data.startsWith('interview:addfield:'))    return this.startAddField(ctx, data.slice(19));
@@ -672,13 +672,26 @@ export class CreatorBotService implements OnModuleInit {
 
     const keyboard = new InlineKeyboard().text('Skip →', 'interview:context:skip');
     await ctx.reply(
-      `✅ Objective saved\\.\n\nOptionally, add *background context* the AI should know \\(company info, tone, requirements\\)\\.\nOr tap *Skip* to continue\\.`,
+      `✅ Objective saved\\.\n\n` +
+      `*Is there anything the AI interviewer should know before it starts?*\n\n` +
+      `This is your chance to brief it — think of it like onboarding a new hire\\. You can include:\n` +
+      `• What your company or product does\n` +
+      `• The tone you want \\(formal, casual, friendly\\)\n` +
+      `• Anything it should avoid saying\n` +
+      `• Who it will be talking to\n\n` +
+      `_Max 800 characters\\. Tap Skip if you don't need this\\._`,
       { parse_mode: 'MarkdownV2', reply_markup: keyboard },
     );
   }
 
   private async onInterviewContextReceived(ctx: Context) {
     const context = ctx.message?.text?.trim() ?? '';
+    if (context.length > 800) {
+      return ctx.reply(
+        `⚠️ Context must be 800 characters or less \\(yours is ${context.length}\\)\\. Please shorten it and try again:`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
     const state = await this.botStateService.getState(tid(ctx), 'CREATOR');
     await this.botStateService.setState(tid(ctx), 'CREATOR', null, {
       ...(state?.context as object),
@@ -727,7 +740,7 @@ export class CreatorBotService implements OnModuleInit {
   private async startAddField(ctx: Context, interviewId: string) {
     await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.INTERVIEW_FIELD_DISPLAY_NAME, { interviewId });
     await this.doEdit(ctx,
-      `➕ *Add a Data Field*\n\nWhat should this field be called?\n\n_Examples: Full Name, Years of Experience, Skills, Salary Expectation_`,
+      `➕ *Add a Data Field*\n\nEnter the name of *one field* you want the AI to collect\\.\nYou'll add the rest one by one after this\\.\n\n*Some ideas:*\n• Full Name\n• Years of Experience\n• Salary Expectation\n• Current Company\n\n_Max 60 characters\\._`,
       { parse_mode: 'MarkdownV2' },
     );
   }

@@ -131,7 +131,7 @@ export class InterviewService {
     }
 
     const shareToken = randomBytes(16).toString('hex');
-    const shareLink = `https://t.me/${process.env.FILLER_BOT_USERNAME}?start=interview_${shareToken}`;
+    const shareLink = `https://t.me/${process.env.TELEGRAM_FILLER_BOT_USERNAME}?start=interview_${shareToken}`;
 
     // Pre-generate the opening message so there's no LLM call on first session start
     const systemPrompt = this.promptBuilder.buildOpeningMessagePrompt(interview);
