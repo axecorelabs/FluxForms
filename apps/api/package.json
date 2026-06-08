@@ -6,7 +6,7 @@
     "prebuild": "prisma generate && cd ../.. && pnpm turbo run build --filter='./packages/*' && cd apps/api",
     "build": "nest build",
     "dev": "nest start --watch",
-    "start": "node dist/main",
+    "start": "prisma migrate deploy && node dist/main",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "lint": "eslint src",
@@ -19,6 +19,7 @@
     "schema": "prisma/schema.prisma"
   },
   "dependencies": {
+    "@fluxforms/emails": "workspace:*",
     "@fluxforms/shared-types": "workspace:*",
     "@fluxforms/state-machine": "workspace:*",
     "@fluxforms/utils": "workspace:*",

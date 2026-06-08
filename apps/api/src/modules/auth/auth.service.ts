@@ -38,6 +38,17 @@ export class AuthService {
     return this.prisma.user.findUnique({ where: { id } });
   }
 
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+  }
+
+  async setEmail(userId: string, email: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { email: email.toLowerCase(), emailVerified: true },
+    });
+  }
+
   signToken(userId: string, role: string): string {
     return this.jwtService.sign({ sub: userId, role });
   }

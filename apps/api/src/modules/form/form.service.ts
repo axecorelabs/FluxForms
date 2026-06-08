@@ -38,6 +38,14 @@ export class FormService {
     return form;
   }
 
+  async findDraftsByCreator(creatorId: string) {
+    return this.prisma.form.findMany({
+      where: { creatorId, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, title: true, createdAt: true, _count: { select: { questions: true } } },
+    });
+  }
+
   async findByCreator(creatorId: string, page = 1, limit = 5) {
     const skip = (page - 1) * limit;
     const [forms, total] = await this.prisma.$transaction([

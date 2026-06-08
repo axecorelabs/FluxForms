@@ -69,6 +69,14 @@ export class InterviewService {
     return interview;
   }
 
+  async findDraftsByCreator(creatorId: string) {
+    return this.prisma.interview.findMany({
+      where: { creatorId, status: 'DRAFT' },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, title: true, type: true, createdAt: true, _count: { select: { schemaFields: true } } },
+    });
+  }
+
   async findByCreator(creatorId: string) {
     return this.prisma.interview.findMany({
       where: { creatorId },
@@ -159,6 +167,18 @@ export class InterviewService {
 
   async archive(id: string, creatorId: string) {
     await this.assertOwner(id, creatorId);
+    return this.prisma.interview.update({
+      where: { id },
+      data: { status: 'ARCHIVED', archivedAt: new Date() },
+    });
+  }
+
+  async delete(id: string, creatorId: string) {
+    await this.assertOwner(id, creatorId);
+    const interview = await this.findById(id);
+    if (interview.status === 'ACTIVE') {
+      throw new BadRequestException('Close the interview before deleting it');
+    }
     return this.prisma.interview.update({
       where: { id },
       data: { status: 'ARCHIVED', archivedAt: new Date() },

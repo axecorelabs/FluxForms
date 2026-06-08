@@ -64,6 +64,47 @@ export interface ExtractedEntity {
   lastUpdatedTurn: number;
 }
 
+export interface FormQuestion {
+  id: string;
+  text: string;
+  type: string;
+  orderIndex: number;
+}
+
+export interface Form {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'DRAFT' | 'PAYMENT_PENDING' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
+  shareLink: string | null;
+  createdAt: string;
+  questions: FormQuestion[];
+  _count?: { responses: number };
+}
+
+export interface FormResponse {
+  id: string;
+  formId: string;
+  sessionId: string;
+  answers: Record<string, string>;
+  status: string;
+  submittedAt: string | null;
+}
+
+export interface FormResponsesPage {
+  responses: FormResponse[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export interface FormsPage {
+  forms: Form[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
 export interface SearchResult {
   id: string;
   userTelegramId: string;

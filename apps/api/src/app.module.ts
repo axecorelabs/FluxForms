@@ -16,6 +16,7 @@ import { InterviewSessionModule } from './modules/interview-session/interview-se
 import { VectorSearchModule } from './modules/vector-search/vector-search.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { DashboardAuthModule } from './modules/dashboard-auth/dashboard-auth.module';
+import { MiniAppModule } from './modules/miniapp/miniapp.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DashboardAuthModule } from './modules/dashboard-auth/dashboard-auth.mod
     VectorSearchModule,
     SubscriptionModule,
     DashboardAuthModule,
+    MiniAppModule,
   ],
 })
 export class AppModule {}

@@ -8,6 +8,7 @@ import { AuthService } from '../auth/auth.service';
 import { ResponseService } from '../response/response.service';
 import { InterviewService } from '../interview/interview.service';
 import { DashboardAuthService } from '../dashboard-auth/dashboard-auth.service';
+import { EmailService } from '../email/email.service';
 import { truncate } from '@fluxforms/utils';
 
 const STEP = {
@@ -23,6 +24,9 @@ const STEP = {
   INTERVIEW_AWAITING_CONTEXT: 'INTERVIEW_AWAITING_CONTEXT',
   INTERVIEW_FIELD_DISPLAY_NAME: 'INTERVIEW_FIELD_DISPLAY_NAME',
   INTERVIEW_FIELD_DESCRIPTION: 'INTERVIEW_FIELD_DESCRIPTION',
+  // Email verification
+  AWAITING_EMAIL: 'AWAITING_EMAIL',
+  AWAITING_EMAIL_CODE: 'AWAITING_EMAIL_CODE',
 } as const;
 
 const INTERVIEW_TYPE_LABELS: Record<string, string> = {
@@ -43,6 +47,11 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   RATING: '⭐ Rating',
 };
 
+function responsesUrl(formId: string): string {
+  const base = process.env.MINI_APP_URL ?? 'https://app.fluxforms.io';
+  return `${base}/responses?formId=${formId}`;
+}
+
 type BotCtx = Record<string, unknown>;
 
 @Injectable()
@@ -59,6 +68,7 @@ export class CreatorBotService implements OnModuleInit {
     private readonly interviewService: InterviewService,
     private readonly dashboardAuthService: DashboardAuthService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly emailService: EmailService,
   ) {}
 
   async onModuleInit() {
@@ -74,12 +84,14 @@ export class CreatorBotService implements OnModuleInit {
     this.bot.command('commands',        ctx => this.onCommands(ctx));
     this.bot.command('createform',      ctx => this.onCreateFormCommand(ctx));
     this.bot.command('myforms',         ctx => this.onMyForms(ctx, 1));
+    this.bot.command('drafts',          ctx => this.onDrafts(ctx));
     this.bot.command('cancel',          ctx => this.onCancel(ctx));
     this.bot.command('form',            ctx => this.onFormCommand(ctx));
     this.bot.command('createinterview', ctx => this.onCreateInterviewCommand(ctx));
     this.bot.command('myinterviews',    ctx => this.onMyInterviews(ctx));
     this.bot.command('dashboard',       ctx => this.onDashboardCommand(ctx));
     this.bot.command('plan',            ctx => this.onPlanCommand(ctx));
+    this.bot.command('addemail',        ctx => this.onAddEmailCommand(ctx));
     this.bot.on('callback_query:data', ctx => this.onCallback(ctx));
     this.bot.on('message:text', ctx => this.onText(ctx));
 
@@ -97,11 +109,18 @@ export class CreatorBotService implements OnModuleInit {
   // ─── Commands ────────────────────────────────────────────────────────────────
 
   private async onStart(ctx: Context) {
-    await this.upsertUser(ctx);
+    const user = await this.upsertUser(ctx);
     await ctx.reply(
-      `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms and AI interviews your audience fills directly inside Telegram\\.\n\n*Forms*\n/createform – Build a new form\n/myforms – View your forms\n\n*AI Interviews*\n/createinterview – Build an AI interview\n/myinterviews – View your interviews\n\n*Account*\n/plan – View your plan and usage\n/dashboard – Open your creator dashboard\n/cancel – Cancel current action`,
+      `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms and AI interviews your audience fills directly inside Telegram\\.\n\n*Forms*\n/createform – Build a new form\n/myforms – View your forms\n\n*AI Interviews*\n/createinterview – Build an AI interview\n/myinterviews – View your interviews\n\n*Drafts*\n/drafts – View all unsaved drafts\n\n*Account*\n/addemail – Add or update your email\n/plan – View your plan and usage\n/dashboard – Open your creator dashboard\n/cancel – Cancel current action`,
       { parse_mode: 'MarkdownV2' },
     );
+    if (!user.emailVerified) {
+      await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+      await ctx.reply(
+        `📧 *One more thing — please verify your email*\n\nWe use it to send you response notifications and important account updates\\.\n\nReply with your email address to get started:`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
   }
 
   private async onCommands(ctx: Context) {
@@ -113,7 +132,10 @@ export class CreatorBotService implements OnModuleInit {
       `*🤖 AI Interviews*\n` +
       `/createinterview – Build a conversational AI interview\n` +
       `/myinterviews – View and manage your interviews\n\n` +
+      `*📝 Drafts*\n` +
+      `/drafts – View all your unfinished drafts\n\n` +
       `*💳 Account*\n` +
+      `/addemail – Add or update your verified email\n` +
       `/plan – View your current plan and response usage\n` +
       `/dashboard – Get a login link to your creator dashboard\n\n` +
       `*🛠 Utility*\n` +
@@ -171,8 +193,31 @@ export class CreatorBotService implements OnModuleInit {
   }
 
   private async onCancel(ctx: Context) {
+    const state = await this.botStateService.getState(tid(ctx), 'CREATOR');
+    const formId = (state?.context as any)?.formId as string | undefined;
     await this.botStateService.clearState(tid(ctx), 'CREATOR');
-    await ctx.reply('✗ Cancelled\\. Use /createform to start a new form\\.', { parse_mode: 'MarkdownV2' });
+
+    if (formId) {
+      const keyboard = new InlineKeyboard()
+        .text('🗑 Delete this draft', `cancel:form:delete:${formId}`)
+        .text('📂 Keep as draft', 'noop');
+      return ctx.reply(
+        '✗ Cancelled\\. Your draft form was saved — what would you like to do with it?',
+        { parse_mode: 'MarkdownV2', reply_markup: keyboard },
+      );
+    }
+
+    return ctx.reply('✗ Cancelled\\. Nothing was saved\\.', { parse_mode: 'MarkdownV2' });
+  }
+
+  private async doCancelDeleteForm(ctx: Context, formId: string) {
+    try {
+      const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
+      await this.formService.delete(formId, user.id);
+      await this.doEdit(ctx, '🗑 Draft deleted\\.', { parse_mode: 'MarkdownV2' });
+    } catch {
+      await ctx.reply('Could not delete the draft\\. Find it in /myforms\\.', { parse_mode: 'MarkdownV2' });
+    }
   }
 
   private async onFormCommand(ctx: Context) {
@@ -188,7 +233,10 @@ export class CreatorBotService implements OnModuleInit {
     const data = ctx.callbackQuery?.data ?? '';
 
     if (data === 'createform:start')    return this.startFormCreation(ctx);
-    if (data === 'createform:cancel')   return this.doEdit(ctx, '✗ Cancelled\\.', { parse_mode: 'MarkdownV2' });
+    if (data === 'createform:cancel') {
+      await this.botStateService.clearState(tid(ctx), 'CREATOR');
+      return this.doEdit(ctx, '✗ Cancelled\\.', { parse_mode: 'MarkdownV2' });
+    }
     if (data === 'addmore:yes')         return this.promptNextQuestion(ctx);
     if (data === 'addmore:done')        return this.showFormPreview(ctx);
     if (data === 'preview:addmore')     return this.promptNextQuestion(ctx);
@@ -211,7 +259,10 @@ export class CreatorBotService implements OnModuleInit {
       return this.showResponses(ctx, formId, parseInt(pageStr));
     }
 
+    if (data.startsWith('cancel:form:delete:'))    return this.doCancelDeleteForm(ctx, data.slice(19));
+
     if (data.startsWith('interview:type:'))        return this.onInterviewTypeSelected(ctx, data.slice(15));
+    if (data === 'interview:wizard:cancel')        return this.onInterviewWizardCancel(ctx);
     if (data === 'interview:context:skip')         return this.onInterviewContextSkipped(ctx);
     if (data.startsWith('interview:activate:'))    return this.activateInterview(ctx, data.slice(19));
     if (data.startsWith('interview:view:'))        return this.showInterviewCard(ctx, data.slice(15));
@@ -221,7 +272,10 @@ export class CreatorBotService implements OnModuleInit {
     if (data.startsWith('ifield:type:'))           return this.onFieldTypeSelected(ctx, data.slice(12));
     if (data.startsWith('ifield:required:'))       return this.onFieldRequiredSelected(ctx, data.slice(16));
     if (data.startsWith('interview:close:confirm:')) return this.closeInterview(ctx, data.slice(24));
-    if (data.startsWith('interview:close:'))       return this.confirmCloseInterview(ctx, data.slice(16));
+    if (data.startsWith('interview:close:'))        return this.confirmCloseInterview(ctx, data.slice(16));
+    if (data.startsWith('interview:delete:'))       return this.deleteInterview(ctx, data.slice(18));
+
+    if (data === 'email:code:resend')    return this.onEmailCodeResend(ctx);
 
     if (data === 'plan:upgrade:STARTER') return this.onPlanUpgrade(ctx, 'STARTER');
     if (data === 'plan:upgrade:GROWTH')  return this.onPlanUpgrade(ctx, 'GROWTH');
@@ -246,8 +300,20 @@ export class CreatorBotService implements OnModuleInit {
       case STEP.INTERVIEW_AWAITING_CONTEXT:   return this.onInterviewContextReceived(ctx);
       case STEP.INTERVIEW_FIELD_DISPLAY_NAME: return this.onFieldDisplayNameReceived(ctx);
       case STEP.INTERVIEW_FIELD_DESCRIPTION:  return this.onFieldDescriptionReceived(ctx);
-      default:
-        return ctx.reply('Use /createform to build a form, /createinterview for an AI interview, or /myforms to view your forms\\.', { parse_mode: 'MarkdownV2' });
+      // Email verification steps
+      case STEP.AWAITING_EMAIL:      return this.onEmailReceived(ctx);
+      case STEP.AWAITING_EMAIL_CODE: return this.onEmailCodeReceived(ctx);
+      default: {
+        const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
+        if (!user.emailVerified) {
+          await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+          return ctx.reply(
+            `📧 *Please verify your email*\n\nReply with your email address to receive response notifications and keep your account secure:`,
+            { parse_mode: 'MarkdownV2' },
+          );
+        }
+        return ctx.reply('Use /commands to see what you can do\\.', { parse_mode: 'MarkdownV2' });
+      }
     }
   }
 
@@ -419,12 +485,18 @@ export class CreatorBotService implements OnModuleInit {
 
       const keyboard = new InlineKeyboard()
         .text('📤 Share Link', `form:share:${formId}`).row()
-        .text('📊 View Responses', `form:responses:${formId}`);
+        .webApp('📊 View Responses', responsesUrl(formId));
 
       await this.doEdit(ctx,
         `✅ *Form Activated\\!*\n\n*${esc(form.title)}* is now live\\.\n\n🔗 Share: ${esc(shareLink)}`,
         { parse_mode: 'MarkdownV2', reply_markup: keyboard },
       );
+      if (!user.emailVerified) {
+        await ctx.reply(
+          `📧 _Add your email with /addemail to get notified when responses come in\\._`,
+          { parse_mode: 'MarkdownV2' },
+        ).catch(() => undefined);
+      }
     } catch (err: any) {
       this.logger.error('Form activation error', err);
       await ctx.reply('⚠️ Could not activate form\\. Please try again\\.', { parse_mode: 'MarkdownV2' });
@@ -450,12 +522,12 @@ export class CreatorBotService implements OnModuleInit {
       const keyboard = new InlineKeyboard();
       if (form.status === 'ACTIVE') {
         keyboard
-          .text('📊 View Responses', `form:responses:${formId}`).row()
+          .webApp('📊 View Responses', responsesUrl(formId)).row()
           .text('🔒 Close Form', `form:close:${formId}`).row()
           .text('📤 Share Link', `form:share:${formId}`);
       } else if (form.status === 'CLOSED') {
         keyboard
-          .text('📊 View Responses', `form:responses:${formId}`).row()
+          .webApp('📊 View Responses', responsesUrl(formId)).row()
           .text('🔓 Re\\-open Form', `form:reopen:${formId}`).row()
           .text('🗑 Archive', `form:delete:${formId}`);
       } else if (form.status === 'DRAFT' || form.status === 'PAYMENT_PENDING') {
@@ -488,7 +560,7 @@ export class CreatorBotService implements OnModuleInit {
         {
           parse_mode: 'MarkdownV2',
           reply_markup: new InlineKeyboard()
-            .text('📊 View Responses', `form:responses:${formId}`).row()
+            .webApp('📊 View Responses', responsesUrl(formId)).row()
             .text('🔓 Re\\-open', `form:reopen:${formId}`),
         },
       );
@@ -504,7 +576,7 @@ export class CreatorBotService implements OnModuleInit {
         {
           parse_mode: 'MarkdownV2',
           reply_markup: new InlineKeyboard()
-            .text('📊 View Responses', `form:responses:${formId}`).row()
+            .webApp('📊 View Responses', responsesUrl(formId)).row()
             .text('🔒 Close Form', `form:close:${formId}`).row()
             .text('📤 Share Link', `form:share:${formId}`),
         },
@@ -586,7 +658,8 @@ export class CreatorBotService implements OnModuleInit {
       .text(INTERVIEW_TYPE_LABELS['CUSTOMER_FEEDBACK'],  'interview:type:CUSTOMER_FEEDBACK').row()
       .text(INTERVIEW_TYPE_LABELS['CLIENT_ONBOARDING'],  'interview:type:CLIENT_ONBOARDING').row()
       .text(INTERVIEW_TYPE_LABELS['MARKET_RESEARCH'],    'interview:type:MARKET_RESEARCH').row()
-      .text(INTERVIEW_TYPE_LABELS['CUSTOM'],             'interview:type:CUSTOM');
+      .text(INTERVIEW_TYPE_LABELS['CUSTOM'],             'interview:type:CUSTOM').row()
+      .text('✗ Cancel', 'interview:wizard:cancel');
 
     await ctx.reply(
       `🤖 *Create a Flux Interview*\n\nAn AI will conduct natural conversations and extract structured data for you\\.\n\nChoose the interview type:`,
@@ -598,7 +671,7 @@ export class CreatorBotService implements OnModuleInit {
     await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.INTERVIEW_AWAITING_TITLE, { interviewType: type });
     const label = esc(INTERVIEW_TYPE_LABELS[type] ?? type);
     await this.doEdit(ctx,
-      `${label} interview selected\\.\n\nWhat's the *title* of this interview?\n\n_Example: Q4 Sales Lead Screening_`,
+      `${label} interview selected\\.\n\nWhat's the *title* of this interview?\n\n_Example: Q4 Sales Lead Screening_\n\n_Use /cancel at any time to stop\\._`,
       { parse_mode: 'MarkdownV2' },
     );
   }
@@ -623,6 +696,42 @@ export class CreatorBotService implements OnModuleInit {
       keyboard.text('View', `interview:view:${iv.id}`);
       if (i % 2 === 1) keyboard.row();
     });
+
+    return this.send(ctx, text, { parse_mode: 'MarkdownV2', reply_markup: keyboard });
+  }
+
+  private async onDrafts(ctx: Context) {
+    const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
+    const [forms, interviews] = await Promise.all([
+      this.formService.findDraftsByCreator(user.id),
+      this.interviewService.findDraftsByCreator(user.id),
+    ]);
+
+    if (forms.length === 0 && interviews.length === 0) {
+      return ctx.reply('You have no drafts\\. Use /createform or /createinterview to start building\\.', { parse_mode: 'MarkdownV2' });
+    }
+
+    let text = `📝 *Your Drafts*\n\n`;
+    const keyboard = new InlineKeyboard();
+
+    if (forms.length > 0) {
+      text += `*Forms*\n`;
+      forms.forEach((f, i) => {
+        text += `• ${esc(truncate(f.title, 40))} \\(${f._count.questions} question${f._count.questions === 1 ? '' : 's'}\\)\n`;
+        keyboard.text(`View`, `form:view:${f.id}`).text(`Delete`, `form:delete:${f.id}`);
+        if (i % 1 === 0) keyboard.row();
+      });
+      text += `\n`;
+    }
+
+    if (interviews.length > 0) {
+      text += `*Interviews*\n`;
+      interviews.forEach((iv, i) => {
+        text += `• ${esc(truncate(iv.title, 40))} \\(${iv._count.schemaFields} field${iv._count.schemaFields === 1 ? '' : 's'}\\)\n`;
+        keyboard.text(`View`, `interview:view:${iv.id}`).text(`Delete`, `interview:delete:${iv.id}`);
+        if (i % 1 === 0) keyboard.row();
+      });
+    }
 
     return this.send(ctx, text, { parse_mode: 'MarkdownV2', reply_markup: keyboard });
   }
@@ -654,7 +763,7 @@ export class CreatorBotService implements OnModuleInit {
     });
 
     await ctx.reply(
-      `✅ Title saved: *${esc(title)}*\n\nNow describe the *objective* of this interview\\.\nWhat information are you trying to collect?\n\n_Example: Screen frontend developer candidates for a senior React role\\. Assess technical skills, experience, and culture fit\\._`,
+      `✅ Title saved: *${esc(title)}*\n\nNow describe the *objective* of this interview\\.\nWhat information are you trying to collect?\n\n_Example: Screen frontend developer candidates for a senior React role\\. Assess technical skills, experience, and culture fit\\._\n\n_Use /cancel at any time to stop\\._`,
       { parse_mode: 'MarkdownV2' },
     );
   }
@@ -670,7 +779,9 @@ export class CreatorBotService implements OnModuleInit {
       interviewObjective: objective,
     });
 
-    const keyboard = new InlineKeyboard().text('Skip →', 'interview:context:skip');
+    const keyboard = new InlineKeyboard()
+      .text('Skip →', 'interview:context:skip')
+      .text('✗ Cancel', 'interview:wizard:cancel');
     await ctx.reply(
       `✅ Objective saved\\.\n\n` +
       `*Is there anything the AI interviewer should know before it starts?*\n\n` +
@@ -707,6 +818,11 @@ export class CreatorBotService implements OnModuleInit {
     await this.createInterviewFromState(ctx);
   }
 
+  private async onInterviewWizardCancel(ctx: Context) {
+    await this.botStateService.clearState(tid(ctx), 'CREATOR');
+    return this.doEdit(ctx, '✗ Cancelled\\. Nothing was saved\\.', { parse_mode: 'MarkdownV2' });
+  }
+
   private async createInterviewFromState(ctx: Context) {
     const state = await this.botStateService.getState(tid(ctx), 'CREATOR');
     const ctxData = (state?.context ?? {}) as Record<string, string>;
@@ -720,6 +836,13 @@ export class CreatorBotService implements OnModuleInit {
     });
 
     await this.botStateService.setState(tid(ctx), 'CREATOR', null, {});
+
+    if (!user.emailVerified) {
+      await ctx.reply(
+        `📧 _Add your email with /addemail to get notified when responses come in\\._`,
+        { parse_mode: 'MarkdownV2' },
+      ).catch(() => undefined);
+    }
 
     const keyboard = new InlineKeyboard()
       .text('➕ Add Data Fields', `interview:addfield:${interview.id}`).row()
@@ -929,6 +1052,16 @@ export class CreatorBotService implements OnModuleInit {
     }
   }
 
+  private async deleteInterview(ctx: Context, interviewId: string) {
+    const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
+    try {
+      await this.interviewService.delete(interviewId, user.id);
+      await this.doEdit(ctx, '🗑 Interview deleted\\.', { parse_mode: 'MarkdownV2' });
+    } catch (err: any) {
+      await ctx.reply(esc(err?.message ?? 'Could not delete the interview\\.'), { parse_mode: 'MarkdownV2' });
+    }
+  }
+
   // ─── Plan / subscription ──────────────────────────────────────────────────────
 
   private async onPlanCommand(ctx: Context) {
@@ -999,6 +1132,127 @@ export class CreatorBotService implements OnModuleInit {
   /** Edit current message, fall back to new message on failure */
   private async doEdit(ctx: Context, text: string, extra: object) {
     return ctx.editMessageText(text, extra as any).catch(() => ctx.reply(text, extra as any));
+  }
+
+  // ─── Email verification ───────────────────────────────────────────────────────
+
+  private async onAddEmailCommand(ctx: Context) {
+    const user = await this.upsertUser(ctx);
+    if (user.emailVerified && user.email) {
+      return ctx.reply(
+        `✅ Your email *${esc(user.email)}* is already verified\\.`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
+    await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+    return ctx.reply(
+      `📧 *Add your email*\n\nReply with your email address:`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
+
+  private async onEmailReceived(ctx: Context) {
+    const email = ctx.message?.text?.trim() ?? '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return ctx.reply('⚠️ That doesn\'t look like a valid email address\\. Please try again:', { parse_mode: 'MarkdownV2' });
+    }
+
+    const existing = await this.authService.findByEmail(email);
+    if (existing) {
+      const user = await this.upsertUser(ctx);
+      if (existing.id !== user.id) {
+        return ctx.reply('⚠️ That email is already linked to another account\\. Please use a different address:', { parse_mode: 'MarkdownV2' });
+      }
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL_CODE, {
+      pendingEmail: email,
+      emailCode: code,
+      emailCodeExpiry: Date.now() + 10 * 60 * 1000,
+      emailCodeAttempts: 0,
+    });
+
+    const user = await this.upsertUser(ctx);
+    try {
+      await this.emailService.sendVerificationCode(email, code, user.firstName ?? undefined);
+    } catch {
+      await this.botStateService.clearState(tid(ctx), 'CREATOR');
+      return ctx.reply('⚠️ Could not send verification email\\. Please try again later\\.', { parse_mode: 'MarkdownV2' });
+    }
+
+    const keyboard = new InlineKeyboard().text('Resend code', 'email:code:resend');
+    return ctx.reply(
+      `📬 A 6\\-digit code was sent to *${esc(email)}*\\.\n\nPlease reply with the code:`,
+      { parse_mode: 'MarkdownV2', reply_markup: keyboard },
+    );
+  }
+
+  private async onEmailCodeReceived(ctx: Context) {
+    const input = (ctx.message?.text?.trim() ?? '').replace(/\s/g, '');
+    const state = await this.botStateService.getState(tid(ctx), 'CREATOR');
+    const ctxData = (state?.context ?? {}) as Record<string, unknown>;
+
+    const code     = ctxData.emailCode as string;
+    const email    = ctxData.pendingEmail as string;
+    const expiry   = ctxData.emailCodeExpiry as number;
+    const attempts = (ctxData.emailCodeAttempts as number) ?? 0;
+
+    if (Date.now() > expiry) {
+      await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+      return ctx.reply('⚠️ That code has expired\\. Please enter your email address again:', { parse_mode: 'MarkdownV2' });
+    }
+
+    if (input !== code) {
+      const next = attempts + 1;
+      if (next >= 3) {
+        await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+        return ctx.reply('⚠️ Too many incorrect attempts\\. Please enter your email address again:', { parse_mode: 'MarkdownV2' });
+      }
+      await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL_CODE, { ...ctxData, emailCodeAttempts: next });
+      const left = 3 - next;
+      return ctx.reply(`⚠️ Incorrect code — ${left} attempt${left === 1 ? '' : 's'} remaining:`, { parse_mode: 'MarkdownV2' });
+    }
+
+    const user = await this.upsertUser(ctx);
+    await this.authService.setEmail(user.id, email);
+    await this.botStateService.clearState(tid(ctx), 'CREATOR');
+    return ctx.reply(
+      `✅ *Email verified\\!*\n\nYou'll now receive notifications when people respond to your forms and interviews\\.`,
+      { parse_mode: 'MarkdownV2' },
+    );
+  }
+
+  private async onEmailCodeResend(ctx: Context) {
+    const state = await this.botStateService.getState(tid(ctx), 'CREATOR');
+    const ctxData = (state?.context ?? {}) as Record<string, unknown>;
+    const email = ctxData.pendingEmail as string | undefined;
+
+    if (!email) {
+      await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL, {});
+      return this.doEdit(ctx, '⚠️ Session expired\\. Please enter your email address again:', { parse_mode: 'MarkdownV2' });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    await this.botStateService.setState(tid(ctx), 'CREATOR', STEP.AWAITING_EMAIL_CODE, {
+      pendingEmail: email,
+      emailCode: code,
+      emailCodeExpiry: Date.now() + 10 * 60 * 1000,
+      emailCodeAttempts: 0,
+    });
+
+    const user = await this.upsertUser(ctx);
+    try {
+      await this.emailService.sendVerificationCode(email, code, user.firstName ?? undefined);
+    } catch {
+      return this.doEdit(ctx, '⚠️ Could not resend\\. Please try again later\\.', { parse_mode: 'MarkdownV2' });
+    }
+
+    const keyboard = new InlineKeyboard().text('Resend code', 'email:code:resend');
+    return this.doEdit(ctx,
+      `📬 New code sent to *${esc(email)}*\\. Please reply with it:`,
+      { parse_mode: 'MarkdownV2', reply_markup: keyboard },
+    );
   }
 
   private async upsertUser(ctx: Context) {

@@ -7,13 +7,19 @@ import {
   ForbiddenException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
 import { validateAnswer, assertSessionTransition } from '@fluxforms/state-machine';
 import { SessionSnapshot, AnswerMap } from '@fluxforms/shared-types';
+import { QUEUES, NotificationJobData } from '../../queue/queue.constants';
 
 @Injectable()
 export class SessionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(QUEUES.NOTIFICATIONS) private readonly notificationsQueue: Queue<NotificationJobData>,
+  ) {}
 
   async startOrResume(shareToken: string, telegramId: string): Promise<SessionSnapshot> {
     const form = await this.prisma.form.findUnique({
@@ -119,7 +125,12 @@ export class SessionService {
 
     assertSessionTransition('REVIEW', 'SUBMITTED');
 
-    await this.prisma.$transaction([
+    const form = await this.prisma.form.findUnique({
+      where: { id: session.formId },
+      select: { creatorId: true },
+    });
+
+    const [, response] = await this.prisma.$transaction([
       this.prisma.session.update({
         where: { id: session.id },
         data: { state: 'SUBMITTED', submittedAt: new Date() },
@@ -133,6 +144,13 @@ export class SessionService {
         },
       }),
     ]);
+
+    if (form) {
+      void this.notificationsQueue.add('notify', {
+        type: 'form.submitted',
+        payload: { formId: session.formId, responseId: response.id, creatorId: form.creatorId },
+      });
+    }
   }
 
   async interruptAllActiveSessions(formId: string): Promise<void> {

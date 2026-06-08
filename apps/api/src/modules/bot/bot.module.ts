@@ -13,6 +13,7 @@ import { InterviewModule } from '../interview/interview.module';
 import { InterviewSessionModule } from '../interview-session/interview-session.module';
 import { DashboardAuthModule } from '../dashboard-auth/dashboard-auth.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { EmailModule } from '../email/email.module';
 import { NotificationProcessor } from '../../queue/processors/notification.processor';
 import { QUEUES } from '../../queue/queue.constants';
 
@@ -29,6 +30,7 @@ import { QUEUES } from '../../queue/queue.constants';
     InterviewSessionModule,
     DashboardAuthModule,
     SubscriptionModule,
+    EmailModule,
     BullModule.registerQueue({ name: QUEUES.NOTIFICATIONS }),
   ],
   providers: [CreatorBotService, FillerBotService, NotificationProcessor],

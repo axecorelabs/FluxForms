@@ -7,6 +7,9 @@ import type {
   InterviewSession,
   SessionDetail,
   SearchResult,
+  Form,
+  FormsPage,
+  FormResponsesPage,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -61,6 +64,18 @@ export async function getInterviewSessions(id: string): Promise<InterviewSession
 
 export async function getSession(sessionId: string): Promise<SessionDetail> {
   return request<SessionDetail>(`/sessions/${sessionId}`);
+}
+
+export async function getForms(page = 1): Promise<FormsPage> {
+  return request<FormsPage>(`/forms?page=${page}`);
+}
+
+export async function getForm(id: string): Promise<Form> {
+  return request<Form>(`/forms/${id}`);
+}
+
+export async function getFormResponses(id: string, page = 1): Promise<FormResponsesPage> {
+  return request<FormResponsesPage>(`/forms/${id}/responses?page=${page}`);
 }
 
 export async function searchSessions(

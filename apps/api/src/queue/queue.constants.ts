@@ -50,7 +50,13 @@ export interface NotifyPaymentSuccessData {
   creatorTelegramId: string;
 }
 
+export interface NotifyFormSubmittedData {
+  formId: string;
+  responseId: string;
+  creatorId: string;
+}
+
 export interface NotificationJobData {
-  type: 'interview.completed' | 'payment.success';
+  type: 'interview.completed' | 'payment.success' | 'form.submitted';
   payload: unknown;
 }
