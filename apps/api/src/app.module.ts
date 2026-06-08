@@ -20,11 +20,18 @@ import { DashboardAuthModule } from './modules/dashboard-auth/dashboard-auth.mod
 @Module({
   imports: [
     EventEmitterModule.forRoot(),
-    BullModule.forRoot({
-      connection: {
-        host: process.env.REDIS_HOST ?? 'localhost',
-        port: parseInt(process.env.REDIS_PORT ?? '6379'),
-        password: process.env.REDIS_PASSWORD,
+    BullModule.forRootAsync({
+      useFactory: () => {
+        const raw = process.env.REDIS_URL ?? 'redis://localhost:6379';
+        const url = new URL(raw);
+        return {
+          connection: {
+            host: url.hostname,
+            port: parseInt(url.port || '6379'),
+            password: url.password || undefined,
+            tls: url.protocol === 'rediss:' ? {} : undefined,
+          },
+        };
       },
     }),
     ThrottlerModule.forRoot([
