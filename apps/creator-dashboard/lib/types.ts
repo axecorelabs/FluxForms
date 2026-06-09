@@ -79,7 +79,7 @@ export interface Form {
   shareLink: string | null;
   createdAt: string;
   questions: FormQuestion[];
-  _count?: { responses: number };
+  _count?: { responses: number; questions?: number };
 }
 
 export interface FormResponse {

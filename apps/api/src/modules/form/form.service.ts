@@ -54,7 +54,7 @@ export class FormService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-        include: { _count: { select: { responses: true } } },
+        include: { _count: { select: { responses: true, questions: true } } },
       }),
       this.prisma.form.count({ where: { creatorId } }),
     ]);

@@ -84,7 +84,9 @@ export default function FormsPage() {
             </div>
           )}
 
-          {forms.map(f => (
+          {forms.map(f => {
+            const qCount = f._count?.questions ?? f.questions?.length ?? 0;
+            return (
             <Link key={f.id} href={`/forms/${f.id}`} style={{ textDecoration: 'none' }}>
               <div
                 style={{
@@ -102,7 +104,7 @@ export default function FormsPage() {
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
                     {STATUS_LABELS[f.status] ?? f.status}
-                    &nbsp;·&nbsp;{f.questions.length} question{f.questions.length !== 1 ? 's' : ''}
+                    &nbsp;·&nbsp;{qCount} question{qCount !== 1 ? 's' : ''}
                     &nbsp;·&nbsp;Created {new Date(f.createdAt).toLocaleDateString()}
                   </div>
                 </div>
@@ -115,7 +117,8 @@ export default function FormsPage() {
                 <ChevronRight size={16} color="var(--text-tertiary)" />
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
 
         {totalPages > 1 && (
