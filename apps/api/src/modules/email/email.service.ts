@@ -20,8 +20,13 @@ export class EmailService {
   }
 
   async sendVerificationCode(email: string, code: string, firstName?: string): Promise<void> {
-    const html = await renderVerificationCode({ code, firstName });
-    await this.send(email, firstName ?? 'there', 'Your FluxForms verification code', html);
+    try {
+      const html = await renderVerificationCode({ code, firstName });
+      await this.send(email, firstName ?? 'there', 'Your FluxForms verification code', html);
+    } catch (err) {
+      this.logger.error(`sendVerificationCode failed: ${err instanceof Error ? err.message : String(err)}`);
+      throw err;
+    }
   }
 
   async sendResponseNotification(
@@ -68,21 +73,29 @@ export class EmailService {
       htmlbody: html,
     };
 
-    this.logger.debug(`Sending email to ${to} via ${this.from.address}`);
+    this.logger.log(`Sending email to ${to} via ${this.from.address}`);
 
-    const res = await fetch(ZEPTOMAIL_API, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: this.token,
-      },
-      body: JSON.stringify(body),
-    });
+    let res: Response;
+    try {
+      res = await fetch(ZEPTOMAIL_API, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: this.token,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (err) {
+      this.logger.error(`Zeptomail fetch threw: ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error('Could not send email. Please try again.');
+    }
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      this.logger.error(`Zeptomail ${res.status} — from: ${this.from.address} | to: ${to} | body: ${text}`);
+      this.logger.error(`Zeptomail ${res.status} — from: ${this.from.address} | to: ${to} | response: ${text}`);
       throw new Error('Could not send email. Please try again.');
     }
+
+    this.logger.log(`Email sent to ${to}`);
   }
 }
