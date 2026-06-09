@@ -6,7 +6,12 @@ export default defineConfig({
   dts: true,
   clean: true,
   bundle: true,
-  external: [],
+  noExternal: [
+    'react',
+    'react-dom',
+    '@react-email/render',
+    '@react-email/components',
+  ],
   esbuildOptions(options) {
     options.jsx = 'automatic';
   },

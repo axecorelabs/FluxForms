@@ -17,10 +17,11 @@
   "dependencies": {
     "@react-email/components": "0.0.28",
     "@react-email/render": "1.0.3",
-    "react": "^18.3.1"
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
-    "@types/react": "^18.3.31",
+    "@types/react": "^19",
     "tsup": "^8.5.1",
     "typescript": "^5.4.5"
   }
