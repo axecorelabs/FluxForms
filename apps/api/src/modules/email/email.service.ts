@@ -8,7 +8,8 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
   private get token() {
-    return process.env.ZEPTOMAIL_API_KEY ?? '';
+    const key = process.env.ZEPTOMAIL_API_KEY ?? '';
+    return key.startsWith('Zoho-enczapikey ') ? key : `Zoho-enczapikey ${key}`;
   }
 
   private get from() {
@@ -55,23 +56,32 @@ export class EmailService {
   }
 
   private async send(to: string, toName: string, subject: string, html: string): Promise<void> {
+    if (!this.token) {
+      this.logger.error('ZEPTOMAIL_API_KEY is not set');
+      throw new Error('Email service not configured.');
+    }
+
+    const body = {
+      from: this.from,
+      to: [{ email_address: { address: to, name: toName } }],
+      subject,
+      htmlbody: html,
+    };
+
+    this.logger.debug(`Sending email to ${to} via ${this.from.address}`);
+
     const res = await fetch(ZEPTOMAIL_API, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: this.token,
       },
-      body: JSON.stringify({
-        from: this.from,
-        to: [{ email_address: { address: to, name: toName } }],
-        subject,
-        htmlbody: html,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
       const text = await res.text().catch(() => '');
-      this.logger.error(`Zeptomail error ${res.status}: ${text}`);
+      this.logger.error(`Zeptomail ${res.status} — from: ${this.from.address} | to: ${to} | body: ${text}`);
       throw new Error('Could not send email. Please try again.');
     }
   }

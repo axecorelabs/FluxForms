@@ -10,6 +10,7 @@ import {
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { validateAnswer, assertSessionTransition } from '@fluxforms/state-machine';
 import { SessionSnapshot, AnswerMap } from '@fluxforms/shared-types';
 import { QUEUES, NotificationJobData } from '../../queue/queue.constants';
@@ -18,6 +19,7 @@ import { QUEUES, NotificationJobData } from '../../queue/queue.constants';
 export class SessionService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscriptionService: SubscriptionService,
     @InjectQueue(QUEUES.NOTIFICATIONS) private readonly notificationsQueue: Queue<NotificationJobData>,
   ) {}
 
@@ -33,6 +35,11 @@ export class SessionService {
     }
     if (form.questions.length === 0) {
       throw new BadRequestException('This form has no questions.');
+    }
+
+    const { allowed } = await this.subscriptionService.checkLimit(form.creatorId);
+    if (!allowed) {
+      throw new BadRequestException('This form is not accepting responses at this time.');
     }
 
     const existing = await this.prisma.session.findUnique({
@@ -146,6 +153,7 @@ export class SessionService {
     ]);
 
     if (form) {
+      void this.subscriptionService.incrementResponseCount(form.creatorId);
       void this.notificationsQueue.add('notify', {
         type: 'form.submitted',
         payload: { formId: session.formId, responseId: response.id, creatorId: form.creatorId },
