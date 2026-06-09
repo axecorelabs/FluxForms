@@ -157,9 +157,13 @@ export class AuthService {
 
     if (!record || record.usedAt || new Date() > record.expiresAt) return false;
 
-    // Check telegramId isn't already taken by another account
     const existing = await this.prisma.user.findUnique({ where: { telegramId } });
-    if (existing && existing.id !== record.userId) return false;
+    if (existing && existing.id !== record.userId) {
+      // Block if the telegramId belongs to a different fully-verified account
+      if (existing.emailVerified && existing.email) return false;
+      // Otherwise it's a Telegram-only user with no dashboard account — free up the telegramId
+      await this.prisma.user.update({ where: { id: existing.id }, data: { telegramId: null } });
+    }
 
     await this.prisma.$transaction([
       this.prisma.user.update({
