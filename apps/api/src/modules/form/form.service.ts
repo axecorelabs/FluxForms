@@ -86,12 +86,9 @@ export class FormService {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const [formCounts, responseCounts, trend] = await this.prisma.$transaction([
-      this.prisma.form.groupBy({
-        by: ['status'],
-        where: { creatorId },
-        _count: true,
-      }),
+    const [totalForms, activeForms, responseCounts, trend] = await this.prisma.$transaction([
+      this.prisma.form.count({ where: { creatorId } }),
+      this.prisma.form.count({ where: { creatorId, status: 'ACTIVE' } }),
       this.prisma.response.count({
         where: { form: { creatorId } },
       }),
@@ -101,9 +98,6 @@ export class FormService {
         orderBy: { submittedAt: 'asc' },
       }),
     ]);
-
-    const totalForms = formCounts.reduce((s, r) => s + r._count, 0);
-    const activeForms = formCounts.find(r => r.status === 'ACTIVE')?._count ?? 0;
 
     // Build daily buckets for the last 30 days
     const buckets: Record<string, number> = {};
