@@ -1,12 +1,10 @@
 'use client';
 
-import { Suspense, useEffect, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Zap, ArrowRight, RotateCcw } from 'lucide-react';
-import { exchangeMagicToken, requestOtp, verifyOtp } from '@/lib/api';
-import { setToken, isAuthenticated } from '@/lib/auth';
-
-// ── Styles ────────────────────────────────────────────────────────────────────
+import { getProfile, requestEmailAdd, verifyEmailAdd } from '@/lib/api';
+import { isAuthenticated } from '@/lib/auth';
 
 const card: React.CSSProperties = {
   background: 'var(--bg-surface)',
@@ -47,8 +45,6 @@ const btn = (disabled: boolean): React.CSSProperties => ({
   fontFamily: 'inherit',
 });
 
-// ── OTP input — 6 individual boxes ───────────────────────────────────────────
-
 function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   const digits = Array.from({ length: 6 }, (_, i) => value[i] ?? '');
@@ -72,7 +68,7 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    onChange(pasted.padEnd(6, '').slice(0, 6));
+    onChange(pasted.padEnd(6, ' ').slice(0, 6).trimEnd());
     refs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
@@ -101,12 +97,8 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
-function LoginInner() {
+export default function AddEmailPage() {
   const router = useRouter();
-  const params = useSearchParams();
-
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -114,21 +106,13 @@ function LoginInner() {
   const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Handle legacy magic link tokens
   useEffect(() => {
-    if (isAuthenticated()) { router.replace('/'); return; }
-    const token = params.get('token');
-    if (token) {
-      exchangeMagicToken(token)
-        .then(({ accessToken, hasEmail }) => {
-          setToken(accessToken);
-          router.replace(hasEmail ? '/' : '/auth/add-email');
-        })
-        .catch(() => setError('This link has expired. Enter your email below to sign in.'));
-    }
-  }, [params, router]);
+    if (!isAuthenticated()) { router.replace('/auth/login'); return; }
+    getProfile()
+      .then(({ hasEmail }) => { if (hasEmail) router.replace('/'); })
+      .catch(() => {});
+  }, [router]);
 
-  // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
@@ -141,7 +125,7 @@ function LoginInner() {
     setLoading(true);
     setError('');
     try {
-      await requestOtp(email.trim());
+      await requestEmailAdd(email.trim());
       setStep('otp');
       setResendCooldown(60);
     } catch (err) {
@@ -156,9 +140,8 @@ function LoginInner() {
     setLoading(true);
     setError('');
     try {
-      const { accessToken, telegramLinked } = await verifyOtp(email.trim(), otp);
-      setToken(accessToken);
-      router.replace(telegramLinked ? '/' : '/auth/connect-telegram');
+      await verifyEmailAdd(email.trim(), otp);
+      router.replace('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed.');
       setOtp('');
@@ -167,7 +150,6 @@ function LoginInner() {
     }
   };
 
-  // Auto-submit when 6 digits entered
   useEffect(() => {
     if (step === 'otp' && otp.replace(/\D/g, '').length === 6) {
       verify();
@@ -178,7 +160,6 @@ function LoginInner() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={card}>
-        {/* Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={20} color="var(--accent-fg)" strokeWidth={2.5} />
@@ -188,10 +169,10 @@ function LoginInner() {
         {step === 'email' ? (
           <>
             <h1 className="brand-heading" style={{ fontSize: 20, color: 'var(--text)', textAlign: 'center', marginBottom: 6 }}>
-              Sign in or create an account
+              Add your email
             </h1>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 28 }}>
-              Enter your email — we'll send you a code. No password needed.
+              We'll send notifications here and use it as your login going forward.
             </p>
             <form onSubmit={sendOtp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input
@@ -259,22 +240,14 @@ function LoginInner() {
         )}
 
         <p style={{ marginTop: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)' }}>
-          Already use the Telegram bot?{' '}
-          <span style={{ color: 'var(--text-secondary)' }}>Use /dashboard to get a sign-in link.</span>
+          <button
+            onClick={() => router.replace('/')}
+            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' }}
+          >
+            Skip for now
+          </button>
         </p>
       </div>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Loading…</div>
-      </div>
-    }>
-      <LoginInner />
-    </Suspense>
   );
 }

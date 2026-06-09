@@ -134,6 +134,63 @@ export class AuthService {
     };
   }
 
+  // ── Add email to existing (Telegram-first) account ────────────────────────
+
+  async requestEmailAdd(userId: string, rawEmail: string): Promise<void> {
+    const email = rawEmail.toLowerCase().trim();
+
+    const taken = await this.prisma.user.findUnique({ where: { email } });
+    if (taken && taken.id !== userId) {
+      throw new BadRequestException('This email is already linked to another account.');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    await this.prisma.emailOtp.deleteMany({ where: { email } });
+    await this.prisma.emailOtp.create({
+      data: { email, codeHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
+    });
+
+    await this.emailService.sendVerificationCode(email, code, user?.firstName ?? undefined);
+  }
+
+  async verifyEmailAdd(userId: string, rawEmail: string, code: string): Promise<void> {
+    const email = rawEmail.toLowerCase().trim();
+
+    const taken = await this.prisma.user.findUnique({ where: { email } });
+    if (taken && taken.id !== userId) {
+      throw new BadRequestException('This email is already linked to another account.');
+    }
+
+    const otp = await this.prisma.emailOtp.findFirst({
+      where: { email, usedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp) throw new BadRequestException('Code expired or not found. Request a new one.');
+    if (otp.attempts >= MAX_ATTEMPTS) {
+      throw new BadRequestException('Too many incorrect attempts. Request a new code.');
+    }
+
+    const inputHash = createHash('sha256').update(code.trim()).digest('hex');
+    if (inputHash !== otp.codeHash) {
+      await this.prisma.emailOtp.update({
+        where: { id: otp.id },
+        data: { attempts: { increment: 1 } },
+      });
+      const remaining = MAX_ATTEMPTS - otp.attempts - 1;
+      throw new BadRequestException(`Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`);
+    }
+
+    await this.prisma.emailOtp.update({ where: { id: otp.id }, data: { usedAt: new Date() } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { email, emailVerified: true },
+    });
+  }
+
   // ── Telegram Link ──────────────────────────────────────────────────────────
 
   async createTelegramLinkToken(userId: string): Promise<{ token: string; deepLink: string }> {
@@ -182,5 +239,16 @@ export class AuthService {
   async getTelegramLinkStatus(userId: string): Promise<{ linked: boolean }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { telegramId: true } });
     return { linked: !!user?.telegramId };
+  }
+
+  async getProfile(userId: string): Promise<{ hasEmail: boolean; telegramLinked: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, emailVerified: true, telegramId: true },
+    });
+    return {
+      hasEmail: !!(user?.emailVerified && user?.email),
+      telegramLinked: !!user?.telegramId,
+    };
   }
 }

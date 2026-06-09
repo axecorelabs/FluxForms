@@ -40,10 +40,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function exchangeMagicToken(token: string): Promise<{ accessToken: string }> {
-  return request<{ accessToken: string }>('/auth/dashboard/exchange', {
+export async function exchangeMagicToken(token: string): Promise<{ accessToken: string; hasEmail: boolean }> {
+  return publicPost('/auth/dashboard/exchange', { token });
+}
+
+export async function getProfile(): Promise<{ hasEmail: boolean; telegramLinked: boolean }> {
+  return request<{ hasEmail: boolean; telegramLinked: boolean }>('/auth/profile');
+}
+
+export async function requestEmailAdd(email: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/email/add', {
     method: 'POST',
-    body: JSON.stringify({ token }),
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyEmailAdd(email: string, code: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/email/add/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
   });
 }
 

@@ -29,7 +29,7 @@ export class DashboardAuthService {
     return `${baseUrl}/auth/login?token=${token}`;
   }
 
-  async exchangeToken(token: string): Promise<{ accessToken: string }> {
+  async exchangeToken(token: string): Promise<{ accessToken: string; hasEmail: boolean }> {
     const record = await this.prisma.dashboardToken.findUnique({
       where: { token },
       include: { creator: true },
@@ -39,7 +39,6 @@ export class DashboardAuthService {
     if (record.usedAt) throw new UnauthorizedException('Token already used');
     if (new Date() > record.expiresAt) throw new UnauthorizedException('Token expired');
 
-    // Mark as used
     await this.prisma.dashboardToken.update({
       where: { token },
       data: { usedAt: new Date() },
@@ -50,6 +49,6 @@ export class DashboardAuthService {
       { expiresIn: '7d' },
     );
 
-    return { accessToken };
+    return { accessToken, hasEmail: !!(record.creator.emailVerified && record.creator.email) };
   }
 }
