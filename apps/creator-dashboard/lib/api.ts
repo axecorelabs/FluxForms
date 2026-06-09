@@ -47,6 +47,35 @@ export async function exchangeMagicToken(token: string): Promise<{ accessToken: 
   });
 }
 
+async function publicPost<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { message?: string }).message ?? `HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+export async function requestOtp(email: string): Promise<{ message: string }> {
+  return publicPost('/auth/email/request', { email });
+}
+
+export async function verifyOtp(email: string, code: string): Promise<{ accessToken: string; telegramLinked: boolean }> {
+  return publicPost('/auth/email/verify', { email, code });
+}
+
+export async function requestTelegramLink(): Promise<{ token: string; deepLink: string }> {
+  return request<{ token: string; deepLink: string }>('/auth/telegram/link-request', { method: 'POST' });
+}
+
+export async function getTelegramLinkStatus(): Promise<{ linked: boolean }> {
+  return request<{ linked: boolean }>('/auth/telegram/link-status');
+}
+
 export async function getInterviews(): Promise<Interview[]> {
   return request<Interview[]>('/interviews');
 }

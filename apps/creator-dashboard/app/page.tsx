@@ -9,7 +9,7 @@ import {
 import { useTheme } from 'next-themes';
 import {
   FileText, MessageSquare, Inbox, Activity, ArrowRight,
-  TrendingUp, TrendingDown,
+
 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getOverviewStats, getInterviews, getForms } from '@/lib/api';
@@ -89,7 +89,7 @@ export default function OverviewPage() {
     <DashboardLayout>
       <div style={{ maxWidth: 1100 }}>
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>
+          <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
             Overview
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your FluxForms command center</p>
@@ -112,15 +112,15 @@ export default function OverviewPage() {
               <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <defs>
                   <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#bfdbfe" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#bfdbfe" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                 <XAxis dataKey="label" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} tickMargin={8} />
                 <YAxis tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} tickMargin={8} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', strokeWidth: 1 }} />
-                <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={2} fill="url(#grad)" dot={false} activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }} />
+                <Area type="monotone" dataKey="count" stroke="#bfdbfe" strokeWidth={2} fill="url(#grad)" dot={false} activeDot={{ r: 4, fill: '#bfdbfe', strokeWidth: 0 }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -138,7 +138,7 @@ export default function OverviewPage() {
                 <XAxis dataKey="name" tick={{ fill: tickColor, fontSize: 10 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' }} />
-                <Bar dataKey="responses" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="responses" fill="#bfdbfe" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { User, Palette, Bell, Shield, Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Link2 } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
+import { getTelegramLinkStatus } from '@/lib/api';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -33,15 +35,21 @@ function Row({ label, description, children }: { label: string; description?: st
 export default function SettingsPage() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [telegramLinked, setTelegramLinked] = useState<boolean | null>(null);
+  const router = useRouter();
 
-  const isDark = resolvedTheme !== 'light';
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    getTelegramLinkStatus()
+      .then(({ linked }) => setTelegramLinked(linked))
+      .catch(() => setTelegramLinked(false));
+  }, []);
 
   return (
     <DashboardLayout>
       <div style={{ maxWidth: 700 }}>
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>Settings</h1>
+          <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>Settings</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Manage your FluxForms preferences</p>
         </div>
 
@@ -74,12 +82,23 @@ export default function SettingsPage() {
 
         {/* Account */}
         <Section title="Account">
-          <Row label="Authentication" description="You're signed in via Telegram magic link">
-            <span style={{ fontSize: 12, color: 'var(--text-tertiary)', background: 'var(--bg-elevated)', padding: '4px 10px', borderRadius: 6 }}>
-              Telegram
-            </span>
+          <Row label="Telegram account" description={telegramLinked ? 'Your Telegram account is connected' : 'Connect to use the Creator Bot and receive notifications'}>
+            {telegramLinked === null ? (
+              <div style={{ width: 80, height: 28 }} />
+            ) : telegramLinked ? (
+              <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 6 }}>
+                Connected
+              </span>
+            ) : (
+              <button
+                onClick={() => router.push('/auth/connect-telegram')}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+              >
+                <Link2 size={12} /> Connect
+              </button>
+            )}
           </Row>
-          <Row label="Creator Bot" description="Use /dashboard to get a new sign-in link">
+          <Row label="Creator Bot" description="Use /dashboard in the bot to get a sign-in link">
             <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
               <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4 }}>/dashboard</code>
             </span>

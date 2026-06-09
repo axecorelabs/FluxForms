@@ -72,7 +72,7 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
           onClick={() => exportCsv(form, data.responses)}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'var(--accent)', color: '#fff', border: 'none',
+            background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
             borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
           }}
         >
@@ -166,7 +166,7 @@ function FormDetailContent({ id }: { id: string }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[form.status] ?? 'var(--text-tertiary)' }} />
-                <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+                <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)' }}>
                   {form.title}
                 </h1>
               </div>

@@ -1,36 +1,55 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
+/* ── Dark (default) ─────────────────────────────────────────────────────── */
 :root {
-  --bg-base:        #09090b;
-  --bg-surface:     #18181b;
-  --bg-elevated:    #27272a;
+  --bg-base:        #000000;
+  --bg-surface:     #18181b;   /* zinc-900 */
+  --bg-elevated:    #27272a;   /* zinc-800 */
   --border:         rgba(255,255,255,0.08);
   --border-strong:  rgba(255,255,255,0.14);
-  --text:           #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary:  #71717a;
-  --accent:         #6366f1;
-  --accent-hover:   #818cf8;
-  --accent-muted:   rgba(99,102,241,0.15);
+
+  --text:           #ffffff;
+  --text-secondary: #a1a1aa;   /* zinc-400 */
+  --text-tertiary:  #71717a;   /* zinc-500 */
+
+  --accent:         #bfdbfe;   /* blue-200 */
+  --accent-hover:   #dbeafe;   /* blue-100 */
+  --accent-muted:   rgba(191,219,254,0.10);
+  --accent-fg:      #09090b;   /* text ON accent bg — blue-200 is light */
+
+  --accent-2:       #fbcfe8;   /* pink-200 — secondary accent */
+
   --success:        #22c55e;
   --warning:        #eab308;
   --error:          #ef4444;
 }
 
+/* ── Light ──────────────────────────────────────────────────────────────── */
 .light {
-  --bg-base:        #f8fafc;
-  --bg-surface:     #ffffff;
-  --bg-elevated:    #f1f5f9;
-  --border:         #e2e8f0;
-  --border-strong:  #cbd5e1;
-  --text:           #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary:  #94a3b8;
-  --accent-muted:   rgba(99,102,241,0.1);
+  --bg-base:        #ffffff;
+  --bg-surface:     #fafafa;   /* zinc-50 */
+  --bg-elevated:    #f4f4f5;   /* zinc-100 */
+  --border:         #e4e4e7;   /* zinc-200 */
+  --border-strong:  #d4d4d8;   /* zinc-300 */
+
+  --text:           #09090b;   /* zinc-950 */
+  --text-secondary: #52525b;   /* zinc-600 */
+  --text-tertiary:  #71717a;   /* zinc-500 */
+
+  --accent:         #2563eb;   /* blue-600 — readable on white */
+  --accent-hover:   #1d4ed8;   /* blue-700 */
+  --accent-muted:   rgba(37,99,235,0.08);
+  --accent-fg:      #ffffff;
+
+  --accent-2:       #db2777;   /* pink-600 for light bg */
+
+  --success:        #16a34a;
+  --warning:        #ca8a04;
+  --error:          #dc2626;
 }
 
-* {
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -39,10 +58,18 @@
 html, body {
   height: 100%;
   font-family: 'Inter', -apple-system, system-ui, sans-serif;
+  font-weight: 400;
   font-feature-settings: "cv02","cv03","cv04","cv11";
   background: var(--bg-base);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Outfit for display headings */
+.brand-heading {
+  font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 input, button, select, textarea {

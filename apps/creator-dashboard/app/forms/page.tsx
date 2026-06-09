@@ -47,7 +47,7 @@ export default function FormsPage() {
     <DashboardLayout>
       <div style={{ maxWidth: 900 }}>
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em', marginBottom: 4 }}>
+          <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
             Forms
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>

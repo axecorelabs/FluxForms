@@ -49,11 +49,13 @@ export class NotificationProcessor extends WorkerHost {
     const creator = await this.auth.findById(p.creatorId);
     if (!creator) return;
 
-    await this.creatorBot.sendRawMessage(
-      parseInt(creator.telegramId),
-      `✅ *New interview completed\\!*\n\n📋 *${esc(p.interviewTitle)}*\n\nView the extracted profile in your dashboard\\.\n/dashboard`,
-      { parse_mode: 'MarkdownV2' },
-    );
+    if (creator.telegramId) {
+      await this.creatorBot.sendRawMessage(
+        parseInt(creator.telegramId),
+        `✅ *New interview completed\\!*\n\n📋 *${esc(p.interviewTitle)}*\n\nView the extracted profile in your dashboard\\.\n/dashboard`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
 
     if (creator.emailVerified && creator.email) {
       const dashboardUrl = `${process.env.DASHBOARD_URL ?? 'https://dashboard.fluxforms.io'}/interviews/${p.interviewId}`;
@@ -98,11 +100,13 @@ export class NotificationProcessor extends WorkerHost {
     const form = await this.formService.findById(p.formId);
     const totalResponses = await this.prisma.response.count({ where: { formId: p.formId } });
 
-    await this.creatorBot.sendRawMessage(
-      parseInt(creator.telegramId),
-      `📬 *New response received\\!*\n\n📄 *${esc(form.title)}*\n\nResponse \\#${totalResponses} is in\\. Open your dashboard to view it\\.`,
-      { parse_mode: 'MarkdownV2' },
-    );
+    if (creator.telegramId) {
+      await this.creatorBot.sendRawMessage(
+        parseInt(creator.telegramId),
+        `📬 *New response received\\!*\n\n📄 *${esc(form.title)}*\n\nResponse \\#${totalResponses} is in\\. Open your dashboard to view it\\.`,
+        { parse_mode: 'MarkdownV2' },
+      );
+    }
 
     if (creator.emailVerified && creator.email) {
       const response = await this.prisma.response.findUnique({ where: { id: p.responseId } });

@@ -27,8 +27,8 @@ function MessageBubble({ msg }: { msg: InterviewMessage }) {
       </div>
       <div style={{
         maxWidth: '72%',
-        background: isAI ? 'var(--bg-surface)' : 'rgba(99,102,241,0.15)',
-        border: `1px solid ${isAI ? 'var(--border)' : 'rgba(99,102,241,0.3)'}`,
+        background: isAI ? 'var(--bg-surface)' : 'var(--accent-muted)',
+        border: `1px solid ${isAI ? 'var(--border)' : 'rgba(191,219,254,0.25)'}`,
         borderRadius: isAI ? '4px 12px 12px 12px' : '12px 4px 12px 12px',
         padding: '10px 14px',
         fontSize: 13,

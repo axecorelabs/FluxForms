@@ -109,6 +109,22 @@ export class CreatorBotService implements OnModuleInit {
   // ─── Commands ────────────────────────────────────────────────────────────────
 
   private async onStart(ctx: Context) {
+    // Handle Telegram account linking from dashboard QR code
+    const payload = ctx.match as string | undefined;
+    if (payload?.startsWith('link_')) {
+      const token = payload.slice(5);
+      const telegramId = ctx.from?.id?.toString();
+      if (telegramId) {
+        const ok = await this.authService.consumeTelegramLinkToken(token, telegramId);
+        if (ok) {
+          await ctx.reply('✅ Your Telegram account has been linked to your FluxForms dashboard. You\'re all set!');
+        } else {
+          await ctx.reply('This link has expired or already been used. Go to your dashboard Settings to generate a new one.');
+        }
+      }
+      return;
+    }
+
     const user = await this.upsertUser(ctx);
     await ctx.reply(
       `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms and AI interviews your audience fills directly inside Telegram\\.\n\n*Forms*\n/createform – Build a new form\n/myforms – View your forms\n\n*AI Interviews*\n/createinterview – Build an AI interview\n/myinterviews – View your interviews\n\n*Drafts*\n/drafts – View all unsaved drafts\n\n*Account*\n/addemail – Add or update your email\n/plan – View your plan and usage\n/dashboard – Open your creator dashboard\n/cancel – Cancel current action`,

@@ -126,7 +126,7 @@ function InterviewDetailContent({ id }: { id: string }) {
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[interview.status] ?? 'var(--text-tertiary)' }} />
-            <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+            <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)' }}>
               {interview.title}
             </h1>
             <span style={{
@@ -205,7 +205,7 @@ function InterviewDetailContent({ id }: { id: string }) {
                 onClick={runSearch}
                 disabled={searching}
                 style={{
-                  background: 'var(--accent)', border: 'none', color: '#fff',
+                  background: 'var(--accent)', border: 'none', color: 'var(--accent-fg)',
                   padding: '6px 14px', borderRadius: 6, cursor: searching ? 'wait' : 'pointer', fontSize: 12,
                 }}
               >
@@ -223,7 +223,7 @@ function InterviewDetailContent({ id }: { id: string }) {
           </div>
 
           {searchResults !== null && (
-            <div style={{ padding: '8px 20px', background: 'rgba(99,102,241,0.08)', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--accent)' }}>
+            <div style={{ padding: '8px 20px', background: 'var(--accent-muted)', borderBottom: '1px solid var(--border)', fontSize: 12, color: 'var(--accent)' }}>
               {displaySessions.length} result{displaySessions.length !== 1 ? 's' : ''} matching &quot;{searchQuery}&quot;
             </div>
           )}
