@@ -19,6 +19,11 @@ export class FormController {
     private readonly responseService: ResponseService,
   ) {}
 
+  @Get('stats')
+  getStats(@UserId() userId: string) {
+    return this.formService.getOverviewStats(userId);
+  }
+
   @Get()
   findAll(@UserId() userId: string, @Query('page') page = '1') {
     return this.formService.findByCreator(userId, parseInt(page, 10));

@@ -979,6 +979,7 @@ export class CreatorBotService implements OnModuleInit {
         DRAFT: '📝 Draft', ACTIVE: '🟢 Active', CLOSED: '🔴 Closed', ARCHIVED: '🗄 Archived',
       };
 
+      const dashboardUrl = `${process.env.DASHBOARD_URL ?? 'https://dashboard.fluxforms.io'}/interviews/${interviewId}`;
       const keyboard = new InlineKeyboard();
       if (interview.status === 'DRAFT') {
         keyboard
@@ -986,8 +987,11 @@ export class CreatorBotService implements OnModuleInit {
           .text('🚀 Activate', `interview:activate:${interviewId}`);
       } else if (interview.status === 'ACTIVE') {
         keyboard
+          .url('📊 View Responses', dashboardUrl).row()
           .text('📤 Share Link', `interview:share:${interviewId}`).row()
           .text('🔒 Close', `interview:close:${interviewId}`);
+      } else if (interview.status === 'CLOSED' || interview.status === 'ARCHIVED') {
+        keyboard.url('📊 View Responses', dashboardUrl);
       }
 
       const fieldList = interview.schemaFields.length > 0
@@ -1006,9 +1010,10 @@ export class CreatorBotService implements OnModuleInit {
     const user = await this.authService.upsertUser({ telegramId: tid(ctx), ...userData(ctx) });
     try {
       const interview = await this.interviewService.activate(interviewId, user.id);
+      const dashboardUrl = `${process.env.DASHBOARD_URL ?? 'https://dashboard.fluxforms.io'}/interviews/${interviewId}`;
       const keyboard = new InlineKeyboard()
         .text('📤 Share Link', `interview:share:${interviewId}`).row()
-        .text('📋 View Details', `interview:view:${interviewId}`);
+        .url('📊 View Responses', dashboardUrl);
 
       await this.doEdit(ctx,
         `🚀 *Interview is now LIVE\\!*\n\n*${esc(interview.title)}*\n\nShare this link with your audience:\n${esc(interview.shareLink ?? '')}`,

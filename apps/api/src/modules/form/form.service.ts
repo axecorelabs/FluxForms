@@ -82,6 +82,47 @@ export class FormService {
     return this.prisma.form.update({ where: { id: formId }, data });
   }
 
+  async getOverviewStats(creatorId: string) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [formCounts, responseCounts, trend] = await this.prisma.$transaction([
+      this.prisma.form.groupBy({
+        by: ['status'],
+        where: { creatorId },
+        _count: true,
+      }),
+      this.prisma.response.count({
+        where: { form: { creatorId } },
+      }),
+      this.prisma.response.findMany({
+        where: { form: { creatorId }, submittedAt: { gte: thirtyDaysAgo } },
+        select: { submittedAt: true },
+        orderBy: { submittedAt: 'asc' },
+      }),
+    ]);
+
+    const totalForms = formCounts.reduce((s, r) => s + r._count, 0);
+    const activeForms = formCounts.find(r => r.status === 'ACTIVE')?._count ?? 0;
+
+    // Build daily buckets for the last 30 days
+    const buckets: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const r of trend) {
+      if (r.submittedAt) {
+        const key = r.submittedAt.toISOString().slice(0, 10);
+        if (key in buckets) buckets[key]++;
+      }
+    }
+    const responseTrend = Object.entries(buckets).map(([date, count]) => ({ date, count }));
+
+    return { totalForms, activeForms, totalResponses: responseCounts, responseTrend };
+  }
+
   async delete(formId: string, creatorId: string) {
     const form = await this.findById(formId);
     if (form.creatorId !== creatorId) throw new ForbiddenException();

@@ -10,6 +10,7 @@ import type {
   Form,
   FormsPage,
   FormResponsesPage,
+  OverviewStats,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -64,6 +65,10 @@ export async function getInterviewSessions(id: string): Promise<InterviewSession
 
 export async function getSession(sessionId: string): Promise<SessionDetail> {
   return request<SessionDetail>(`/sessions/${sessionId}`);
+}
+
+export async function getOverviewStats(): Promise<OverviewStats> {
+  return request<OverviewStats>('/forms/stats');
 }
 
 export async function getForms(page = 1): Promise<FormsPage> {

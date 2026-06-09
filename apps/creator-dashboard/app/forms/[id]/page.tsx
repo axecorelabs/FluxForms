@@ -2,28 +2,35 @@
 
 import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
-import AuthGuard from '@/components/AuthGuard';
+import { ChevronLeft, Download } from 'lucide-react';
+import DashboardLayout from '@/components/DashboardLayout';
 import { getForm, getFormResponses } from '@/lib/api';
 import type { Form, FormQuestion, FormResponse, FormResponsesPage } from '@/lib/types';
 
 const STATUS_LABELS: Record<string, string> = {
-  ACTIVE:          '🟢 Active',
-  DRAFT:           '📝 Draft',
-  PAYMENT_PENDING: '⏳ Pending payment',
-  CLOSED:          '🔴 Closed',
-  ARCHIVED:        '🗄 Archived',
+  ACTIVE: 'Active',
+  DRAFT: 'Draft',
+  PAYMENT_PENDING: 'Pending payment',
+  CLOSED: 'Closed',
+  ARCHIVED: 'Archived',
+};
+
+const STATUS_DOT: Record<string, string> = {
+  ACTIVE: 'var(--success)',
+  DRAFT: 'var(--text-tertiary)',
+  PAYMENT_PENDING: 'var(--warning)',
+  CLOSED: 'var(--error)',
+  ARCHIVED: 'var(--text-tertiary)',
 };
 
 function exportCsv(form: Form, responses: FormResponse[]) {
   const questions = form.questions;
-  const header = ['Submitted At', ...questions.map(q => q.text)].join(',');
+  const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+  const header = ['Submitted At', ...questions.map(q => escape(q.text))].join(',');
   const rows = responses.map(r => {
     const date = r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '';
-    const values = questions.map(q => {
-      const v = r.answers[q.id] ?? '';
-      return `"${String(v).replace(/"/g, '""')}"`;
-    });
-    return [`"${date}"`, ...values].join(',');
+    const values = questions.map(q => escape(r.answers[q.id] ?? ''));
+    return [escape(date), ...values].join(',');
   });
   const csv = [header, ...rows].join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
@@ -49,37 +56,40 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
       .finally(() => setLoading(false));
   }, [form.id, page]);
 
-  if (loading) return <div style={{ color: 'var(--muted)', padding: '2rem 0' }}>Loading responses…</div>;
-  if (error) return <div style={{ color: 'var(--error)', padding: '1rem', fontSize: '0.875rem' }}>{error}</div>;
+  if (loading) return <div style={{ padding: '32px 0', color: 'var(--text-tertiary)', fontSize: 13 }}>Loading responses…</div>;
+  if (error) return <div style={{ color: 'var(--error)', fontSize: 13 }}>{error}</div>;
   if (!data || data.responses.length === 0) {
-    return <div style={{ color: 'var(--muted)', padding: '3rem 0', textAlign: 'center' }}>No responses yet.</div>;
+    return <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>No responses yet.</div>;
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>{data.total} response{data.total !== 1 ? 's' : ''}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+          {data.total} response{data.total !== 1 ? 's' : ''}
+        </span>
         <button
           onClick={() => exportCsv(form, data.responses)}
           style={{
+            display: 'flex', alignItems: 'center', gap: 6,
             background: 'var(--accent)', color: '#fff', border: 'none',
-            borderRadius: '6px', padding: '0.4rem 1rem',
-            cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+            borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
           }}
         >
+          <Download size={13} strokeWidth={2.5} />
           Export CSV
         </button>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              <th style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <tr style={{ background: 'var(--bg-elevated)' }}>
+              <th style={{ textAlign: 'left', padding: '10px 16px', color: 'var(--text-tertiary)', fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)' }}>
                 Submitted
               </th>
               {questions.map(q => (
-                <th key={q.id} style={{ textAlign: 'left', padding: '0.5rem 0.75rem', color: 'var(--muted)', fontWeight: 600, maxWidth: '180px' }}>
+                <th key={q.id} style={{ textAlign: 'left', padding: '10px 16px', color: 'var(--text-tertiary)', fontWeight: 500, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em', maxWidth: 200, borderBottom: '1px solid var(--border)' }}>
                   {q.text}
                 </th>
               ))}
@@ -87,12 +97,15 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
           </thead>
           <tbody>
             {data.responses.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '0.6rem 0.75rem', color: 'var(--muted)', whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+              <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}
+                onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-elevated)'}
+                onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
+              >
+                <td style={{ padding: '10px 16px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: 12 }}>
                   {r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}
                 </td>
                 {questions.map(q => (
-                  <td key={q.id} style={{ padding: '0.6rem 0.75rem', color: 'var(--text)', maxWidth: '220px', wordBreak: 'break-word' }}>
+                  <td key={q.id} style={{ padding: '10px 16px', color: 'var(--text)', maxWidth: 240, wordBreak: 'break-word' }}>
                     {r.answers[q.id] ?? '—'}
                   </td>
                 ))}
@@ -103,23 +116,21 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
       </div>
 
       {data.totalPages > 1 && (
-        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 20 }}>
           <button
             disabled={page === 1}
             onClick={() => setPage(p => p - 1)}
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.35rem 0.85rem', borderRadius: '6px', cursor: page === 1 ? 'default' : 'pointer', opacity: page === 1 ? 0.4 : 1 }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 6, cursor: page === 1 ? 'default' : 'pointer', fontSize: 13, opacity: page === 1 ? 0.5 : 1 }}
           >
-            ← Prev
+            Previous
           </button>
-          <span style={{ color: 'var(--muted)', fontSize: '0.85rem', lineHeight: '2rem' }}>
-            {page} / {data.totalPages}
-          </span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: 13, lineHeight: '32px' }}>{page} / {data.totalPages}</span>
           <button
             disabled={page === data.totalPages}
             onClick={() => setPage(p => p + 1)}
-            style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '0.35rem 0.85rem', borderRadius: '6px', cursor: page === data.totalPages ? 'default' : 'pointer', opacity: page === data.totalPages ? 0.4 : 1 }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 6, cursor: page === data.totalPages ? 'default' : 'pointer', fontSize: 13, opacity: page === data.totalPages ? 0.5 : 1 }}
           >
-            Next →
+            Next
           </button>
         </div>
       )}
@@ -140,54 +151,41 @@ function FormDetailContent({ id }: { id: string }) {
   }, [id]);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header style={{
-        borderBottom: '1px solid var(--border)',
-        padding: '0 2rem',
-        height: '56px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        background: 'var(--surface)',
-      }}>
-        <Link href="/forms" style={{ color: 'var(--muted)', fontSize: '0.85rem', textDecoration: 'none' }}>
-          ← Forms
+    <div style={{ maxWidth: 1000 }}>
+      <div style={{ marginBottom: 24 }}>
+        <Link href="/forms" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: 16 }}>
+          <ChevronLeft size={14} />
+          Forms
         </Link>
-        {form && (
-          <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)' }}>
-            {form.title}
-          </span>
-        )}
-      </header>
 
-      <main style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem' }}>
-        {loading && <div style={{ color: 'var(--muted)', padding: '2rem 0' }}>Loading…</div>}
-        {error && <div style={{ color: 'var(--error)', padding: '1rem', fontSize: '0.875rem' }}>{error}</div>}
+        {loading && <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Loading…</div>}
+        {error && <div style={{ color: 'var(--error)', fontSize: 13 }}>{error}</div>}
 
         {form && (
-          <>
-            <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-              <div>
-                <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.3rem', color: 'var(--text)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[form.status] ?? 'var(--text-tertiary)' }} />
+                <h1 style={{ fontSize: 22, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.02em' }}>
                   {form.title}
                 </h1>
-                <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-                  {STATUS_LABELS[form.status] ?? form.status}
-                  &nbsp;·&nbsp;{form.questions.length} question{form.questions.length !== 1 ? 's' : ''}
-                  &nbsp;·&nbsp;Created {new Date(form.createdAt).toLocaleDateString()}
-                </div>
               </div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                {STATUS_LABELS[form.status] ?? form.status}
+                &nbsp;·&nbsp;{form.questions.length} question{form.questions.length !== 1 ? 's' : ''}
+                &nbsp;·&nbsp;Created {new Date(form.createdAt).toLocaleDateString()}
+              </p>
             </div>
-
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.5rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: '0 0 1.25rem', color: 'var(--text)' }}>
-                Responses
-              </h2>
-              <ResponsesTable form={form} questions={form.questions} />
-            </div>
-          </>
+          </div>
         )}
-      </main>
+      </div>
+
+      {form && (
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 24 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>Responses</h2>
+          <ResponsesTable form={form} questions={form.questions} />
+        </div>
+      )}
     </div>
   );
 }
@@ -195,8 +193,8 @@ function FormDetailContent({ id }: { id: string }) {
 export default function FormDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
-    <AuthGuard>
+    <DashboardLayout>
       <FormDetailContent id={id} />
-    </AuthGuard>
+    </DashboardLayout>
   );
 }

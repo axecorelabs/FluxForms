@@ -98,6 +98,13 @@ export interface FormResponsesPage {
   totalPages: number;
 }
 
+export interface OverviewStats {
+  totalForms: number;
+  activeForms: number;
+  totalResponses: number;
+  responseTrend: Array<{ date: string; count: number }>;
+}
+
 export interface FormsPage {
   forms: Form[];
   total: number;

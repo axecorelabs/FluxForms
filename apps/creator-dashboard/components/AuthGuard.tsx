@@ -18,8 +18,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--muted)', fontSize: '0.9rem' }}>Loading…</div>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-base)' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Loading…</div>
       </div>
     );
   }
