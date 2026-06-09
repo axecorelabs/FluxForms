@@ -65,7 +65,7 @@ function EntityCard({ entity }: { entity: ExtractedEntity }) {
         <span style={{
           fontSize: 11, fontWeight: 500,
           color: confidence >= 0.8 ? 'var(--success)' : confidence >= 0.5 ? 'var(--warning)' : 'var(--error)',
-          padding: '1px 6px', borderRadius: 4,
+          padding: '1px 6px', borderRadius: 6,
           background: confidence >= 0.8 ? 'rgba(34,197,94,0.1)' : confidence >= 0.5 ? 'rgba(234,179,8,0.1)' : 'rgba(239,68,68,0.1)',
         }}>
           {pct}%
@@ -118,7 +118,7 @@ function SessionViewerContent({ interviewId, sessionId }: { interviewId: string;
                 <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                   {session.userTelegramId}
                 </span>
-                <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 4, color: badge.color, background: badge.bg }}>
+                <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 6, color: badge.color, background: badge.bg }}>
                   {session.state}
                 </span>
                 <span style={{ fontSize: 12, color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
@@ -181,7 +181,7 @@ function SessionViewerContent({ interviewId, sessionId }: { interviewId: string;
                     <pre style={{
                       marginTop: 8, fontSize: 11, color: 'var(--text-secondary)',
                       overflowX: 'auto', lineHeight: 1.5,
-                      background: 'var(--bg-base)', borderRadius: 6,
+                      background: 'var(--bg-base)', borderRadius: 10,
                       padding: '10px 12px', border: '1px solid var(--border)',
                     }}>
                       {JSON.stringify(entities, null, 2)}

@@ -206,7 +206,11 @@ export class AuthService {
     return { token, deepLink: `https://t.me/${botUsername}?start=link_${token}` };
   }
 
-  async consumeTelegramLinkToken(token: string, telegramId: string): Promise<boolean> {
+  async consumeTelegramLinkToken(
+    token: string,
+    telegramId: string,
+    profile?: { username?: string; firstName?: string; lastName?: string },
+  ): Promise<boolean> {
     const record = await this.prisma.telegramLinkToken.findUnique({
       where: { token },
       include: { user: true },
@@ -216,16 +220,19 @@ export class AuthService {
 
     const existing = await this.prisma.user.findUnique({ where: { telegramId } });
     if (existing && existing.id !== record.userId) {
-      // Block if the telegramId belongs to a different fully-verified account
       if (existing.emailVerified && existing.email) return false;
-      // Otherwise it's a Telegram-only user with no dashboard account — free up the telegramId
       await this.prisma.user.update({ where: { id: existing.id }, data: { telegramId: null } });
     }
 
     await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: record.userId },
-        data: { telegramId },
+        data: {
+          telegramId,
+          ...(profile?.username   && { username:  profile.username }),
+          ...(profile?.firstName  && { firstName: profile.firstName }),
+          ...(profile?.lastName   && { lastName:  profile.lastName }),
+        },
       }),
       this.prisma.telegramLinkToken.update({
         where: { token },
@@ -241,14 +248,16 @@ export class AuthService {
     return { linked: !!user?.telegramId };
   }
 
-  async getProfile(userId: string): Promise<{ hasEmail: boolean; telegramLinked: boolean }> {
+  async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, emailVerified: true, telegramId: true },
+      select: { email: true, emailVerified: true, telegramId: true, firstName: true, username: true },
     });
     return {
       hasEmail: !!(user?.emailVerified && user?.email),
       telegramLinked: !!user?.telegramId,
+      email: user?.email ?? null,
+      displayName: user?.firstName ?? user?.username ?? null,
     };
   }
 }

@@ -2,50 +2,56 @@
 
 /* ── Dark (default) ─────────────────────────────────────────────────────── */
 :root {
-  --bg-base:        #000000;
-  --bg-surface:     #18181b;   /* zinc-900 */
-  --bg-elevated:    #27272a;   /* zinc-800 */
-  --border:         rgba(255,255,255,0.08);
-  --border-strong:  rgba(255,255,255,0.14);
+  --bg-base:        #0d0d10;
+  --bg-surface:     #15151a;
+  --bg-elevated:    #1e1e24;
+  --border:         rgba(255,255,255,0.07);
+  --border-strong:  rgba(255,255,255,0.12);
 
-  --text:           #ffffff;
-  --text-secondary: #a1a1aa;   /* zinc-400 */
-  --text-tertiary:  #71717a;   /* zinc-500 */
+  --text:           #eaeaed;
+  --text-secondary: #9898a6;
+  --text-tertiary:  #65656f;
 
-  --accent:         #bfdbfe;   /* blue-200 */
-  --accent-hover:   #dbeafe;   /* blue-100 */
-  --accent-muted:   rgba(191,219,254,0.10);
-  --accent-fg:      #09090b;   /* text ON accent bg — blue-200 is light */
+  --accent:         #bfdbfe;
+  --accent-hover:   #dbeafe;
+  --accent-muted:   rgba(191,219,254,0.09);
+  --accent-fg:      #09090b;
 
-  --accent-2:       #fbcfe8;   /* pink-200 — secondary accent */
+  --accent-2:       #fbcfe8;
 
-  --success:        #22c55e;
-  --warning:        #eab308;
-  --error:          #ef4444;
+  --success:        #34d399;
+  --warning:        #fbbf24;
+  --error:          #f87171;
+
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:      0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3);
 }
 
 /* ── Light ──────────────────────────────────────────────────────────────── */
 .light {
-  --bg-base:        #ffffff;
-  --bg-surface:     #fafafa;   /* zinc-50 */
-  --bg-elevated:    #f4f4f5;   /* zinc-100 */
-  --border:         #e4e4e7;   /* zinc-200 */
-  --border-strong:  #d4d4d8;   /* zinc-300 */
+  --bg-base:        #f5f5f7;
+  --bg-surface:     #ffffff;
+  --bg-elevated:    #ebebef;
+  --border:         rgba(0,0,0,0.08);
+  --border-strong:  rgba(0,0,0,0.14);
 
-  --text:           #09090b;   /* zinc-950 */
-  --text-secondary: #52525b;   /* zinc-600 */
-  --text-tertiary:  #71717a;   /* zinc-500 */
+  --text:           #1a1a1f;
+  --text-secondary: #50505c;
+  --text-tertiary:  #808090;
 
-  --accent:         #2563eb;   /* blue-600 — readable on white */
-  --accent-hover:   #1d4ed8;   /* blue-700 */
-  --accent-muted:   rgba(37,99,235,0.08);
+  --accent:         #2563eb;
+  --accent-hover:   #1d4ed8;
+  --accent-muted:   rgba(37,99,235,0.07);
   --accent-fg:      #ffffff;
 
-  --accent-2:       #db2777;   /* pink-600 for light bg */
+  --accent-2:       #db2777;
 
   --success:        #16a34a;
   --warning:        #ca8a04;
   --error:          #dc2626;
+
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:      0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.05);
 }
 
 /* ── Reset ──────────────────────────────────────────────────────────────── */
@@ -68,10 +74,16 @@ html, body {
 /* Outfit for display headings */
 .brand-heading {
   font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
-  font-weight: 600;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 input, button, select, textarea {
   font-family: inherit;
 }
+
+/* Softer scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }

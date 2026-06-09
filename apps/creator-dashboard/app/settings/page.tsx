@@ -9,7 +9,7 @@ import { getTelegramLinkStatus } from '@/lib/api';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginBottom: 16 }}>
       <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
         <h2 style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{title}</h2>
       </div>
@@ -47,7 +47,7 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: 700 }}>
+      <div style={{ maxWidth: 700, margin: '0 auto' }}>
         <div style={{ marginBottom: 28 }}>
           <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>Settings</h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Manage your FluxForms preferences</p>
@@ -57,14 +57,14 @@ export default function SettingsPage() {
         <Section title="Appearance">
           <Row label="Theme" description="Choose between light and dark mode">
             {mounted ? (
-              <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 6, padding: 3, gap: 2 }}>
+              <div style={{ display: 'flex', background: 'var(--bg-elevated)', borderRadius: 10, padding: 3, gap: 2 }}>
                 {(['light', 'dark'] as const).map(t => (
                   <button
                     key={t}
                     onClick={() => setTheme(t)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '5px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                      padding: '5px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
                       fontSize: 12, fontWeight: 500,
                       background: resolvedTheme === t ? 'var(--bg-surface)' : 'transparent',
                       color: resolvedTheme === t ? 'var(--text)' : 'var(--text-tertiary)',
@@ -86,13 +86,13 @@ export default function SettingsPage() {
             {telegramLinked === null ? (
               <div style={{ width: 80, height: 28 }} />
             ) : telegramLinked ? (
-              <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 10 }}>
                 Connected
               </span>
             ) : (
               <button
                 onClick={() => router.push('/auth/connect-telegram')}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 10, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 <Link2 size={12} /> Connect
               </button>
@@ -100,7 +100,7 @@ export default function SettingsPage() {
           </Row>
           <Row label="Creator Bot" description="Use /dashboard in the bot to get a sign-in link">
             <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>
-              <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4 }}>/dashboard</code>
+              <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 6 }}>/dashboard</code>
             </span>
           </Row>
         </Section>
@@ -108,12 +108,12 @@ export default function SettingsPage() {
         {/* Notifications */}
         <Section title="Notifications">
           <Row label="Form response notifications" description="Get Telegram alerts when someone fills your form">
-            <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 10 }}>
               Enabled
             </span>
           </Row>
           <Row label="Interview completion alerts" description="Get notified when an AI interview finishes">
-            <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 6 }}>
+            <span style={{ fontSize: 12, color: 'var(--success)', background: 'rgba(34,197,94,0.1)', padding: '4px 10px', borderRadius: 10 }}>
               Enabled
             </span>
           </Row>
@@ -126,7 +126,7 @@ export default function SettingsPage() {
         <Section title="Plan & Usage">
           <Row label="Manage subscription" description="View your current plan, usage, and upgrade options">
             <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              Use <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 4 }}>/plans</code> in the Creator Bot
+              Use <code style={{ background: 'var(--bg-elevated)', padding: '2px 6px', borderRadius: 6 }}>/plans</code> in the Creator Bot
             </span>
           </Row>
         </Section>

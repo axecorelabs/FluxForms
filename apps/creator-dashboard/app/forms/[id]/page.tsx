@@ -73,7 +73,7 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'var(--accent)', color: 'var(--accent-fg)', border: 'none',
-            borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+            borderRadius: 10, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600,
           }}
         >
           <Download size={13} strokeWidth={2.5} />
@@ -81,7 +81,7 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
         </button>
       </div>
 
-      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
+      <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ background: 'var(--bg-elevated)' }}>
@@ -120,7 +120,7 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
           <button
             disabled={page === 1}
             onClick={() => setPage(p => p - 1)}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 6, cursor: page === 1 ? 'default' : 'pointer', fontSize: 13, opacity: page === 1 ? 0.5 : 1 }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 10, cursor: page === 1 ? 'default' : 'pointer', fontSize: 13, opacity: page === 1 ? 0.5 : 1 }}
           >
             Previous
           </button>
@@ -128,7 +128,7 @@ function ResponsesTable({ form, questions }: { form: Form; questions: FormQuesti
           <button
             disabled={page === data.totalPages}
             onClick={() => setPage(p => p + 1)}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 6, cursor: page === data.totalPages ? 'default' : 'pointer', fontSize: 13, opacity: page === data.totalPages ? 0.5 : 1 }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)', padding: '6px 16px', borderRadius: 10, cursor: page === data.totalPages ? 'default' : 'pointer', fontSize: 13, opacity: page === data.totalPages ? 0.5 : 1 }}
           >
             Next
           </button>
@@ -151,7 +151,7 @@ function FormDetailContent({ id }: { id: string }) {
   }, [id]);
 
   return (
-    <div style={{ maxWidth: 1000 }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
         <Link href="/forms" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--text-secondary)', textDecoration: 'none', marginBottom: 16 }}>
           <ChevronLeft size={14} />
@@ -181,7 +181,7 @@ function FormDetailContent({ id }: { id: string }) {
       </div>
 
       {form && (
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, padding: 24 }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
           <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 20 }}>Responses</h2>
           <ResponsesTable form={form} questions={form.questions} />
         </div>

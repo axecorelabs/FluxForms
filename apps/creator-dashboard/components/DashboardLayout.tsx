@@ -8,8 +8,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AuthGuard>
       <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)' }}>
         <Sidebar />
-        <main style={{ flex: 1, overflow: 'auto', padding: '32px', minWidth: 0 }}>
-          {children}
+        <main style={{ flex: 1, overflow: 'auto', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px' }}>
+          <div style={{ width: '100%', maxWidth: 1200 }}>
+            {children}
+          </div>
         </main>
       </div>
     </AuthGuard>

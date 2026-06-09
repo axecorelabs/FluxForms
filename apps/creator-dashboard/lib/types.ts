@@ -98,11 +98,28 @@ export interface FormResponsesPage {
   totalPages: number;
 }
 
-export interface OverviewStats {
+export interface OverviewData {
   totalForms: number;
   activeForms: number;
   totalResponses: number;
   responseTrend: Array<{ date: string; count: number }>;
+  totalInterviews: number;
+  activeInterviews: number;
+  totalCompletions: number;
+  recentForms: Array<{
+    id: string;
+    title: string;
+    status: string;
+    _count: { responses: number; questions: number };
+  }>;
+  recentInterviews: Array<{
+    id: string;
+    title: string;
+    status: string;
+    type: string;
+    completedCount: number;
+    schemaFields: Array<{ fieldName: string }>;
+  }>;
 }
 
 export interface FormsPage {

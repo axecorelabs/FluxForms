@@ -11,7 +11,7 @@ import { setToken, isAuthenticated } from '@/lib/auth';
 const card: React.CSSProperties = {
   background: 'var(--bg-surface)',
   border: '1px solid var(--border)',
-  borderRadius: 12,
+  borderRadius: 16,
   padding: '40px 32px',
   maxWidth: 400,
   width: '100%',
@@ -21,7 +21,7 @@ const input: React.CSSProperties = {
   width: '100%',
   background: 'var(--bg-elevated)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
+  borderRadius: 12,
   padding: '10px 14px',
   color: 'var(--text)',
   fontSize: 14,
@@ -38,7 +38,7 @@ const btn = (disabled: boolean): React.CSSProperties => ({
   background: disabled ? 'var(--bg-elevated)' : 'var(--accent)',
   color: disabled ? 'var(--text-tertiary)' : 'var(--accent-fg)',
   border: 'none',
-  borderRadius: 8,
+  borderRadius: 12,
   padding: '11px 16px',
   fontSize: 14,
   fontWeight: 600,
@@ -92,7 +92,7 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
           style={{
             width: 44, height: 52, textAlign: 'center', fontSize: 22, fontWeight: 600,
             background: 'var(--bg-elevated)', border: `1px solid ${d ? 'var(--accent)' : 'var(--border)'}`,
-            borderRadius: 8, color: 'var(--text)', outline: 'none', fontFamily: 'inherit',
+            borderRadius: 12, color: 'var(--text)', outline: 'none', fontFamily: 'inherit',
             caretColor: 'transparent', transition: 'border-color 0.15s',
           }}
         />
@@ -180,7 +180,7 @@ function LoginInner() {
       <div style={card}>
         {/* Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <div style={{ width: 44, height: 44, borderRadius: 10, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={20} color="var(--accent-fg)" strokeWidth={2.5} />
           </div>
         </div>
@@ -253,7 +253,7 @@ function LoginInner() {
         )}
 
         {error && (
-          <div style={{ marginTop: 16, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 6, fontSize: 12, color: 'var(--error)' }}>
+          <div style={{ marginTop: 16, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: 'var(--error)' }}>
             {error}
           </div>
         )}

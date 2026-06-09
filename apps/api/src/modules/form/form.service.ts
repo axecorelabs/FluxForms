@@ -89,9 +89,7 @@ export class FormService {
     const [totalForms, activeForms, responseCounts, trend] = await this.prisma.$transaction([
       this.prisma.form.count({ where: { creatorId } }),
       this.prisma.form.count({ where: { creatorId, status: 'ACTIVE' } }),
-      this.prisma.response.count({
-        where: { form: { creatorId } },
-      }),
+      this.prisma.response.count({ where: { form: { creatorId } } }),
       this.prisma.response.findMany({
         where: { form: { creatorId }, submittedAt: { gte: thirtyDaysAgo } },
         select: { submittedAt: true },
@@ -99,7 +97,6 @@ export class FormService {
       }),
     ]);
 
-    // Build daily buckets for the last 30 days
     const buckets: Record<string, number> = {};
     for (let i = 29; i >= 0; i--) {
       const d = new Date();
@@ -115,6 +112,79 @@ export class FormService {
     const responseTrend = Object.entries(buckets).map(([date, count]) => ({ date, count }));
 
     return { totalForms, activeForms, totalResponses: responseCounts, responseTrend };
+  }
+
+  async getOverview(creatorId: string) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [
+      totalForms,
+      activeForms,
+      totalResponses,
+      trend,
+      totalInterviews,
+      activeInterviews,
+      completionSum,
+      recentForms,
+      recentInterviews,
+    ] = await this.prisma.$transaction([
+      this.prisma.form.count({ where: { creatorId } }),
+      this.prisma.form.count({ where: { creatorId, status: 'ACTIVE' } }),
+      this.prisma.response.count({ where: { form: { creatorId } } }),
+      this.prisma.response.findMany({
+        where: { form: { creatorId }, submittedAt: { gte: thirtyDaysAgo } },
+        select: { submittedAt: true },
+        orderBy: { submittedAt: 'asc' },
+      }),
+      this.prisma.interview.count({ where: { creatorId } }),
+      this.prisma.interview.count({ where: { creatorId, status: 'ACTIVE' } }),
+      this.prisma.interview.aggregate({ where: { creatorId }, _sum: { completedCount: true } }),
+      this.prisma.form.findMany({
+        where: { creatorId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true, title: true, status: true,
+          _count: { select: { responses: true, questions: true } },
+        },
+      }),
+      this.prisma.interview.findMany({
+        where: { creatorId },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true, title: true, status: true, type: true, completedCount: true,
+          schemaFields: { select: { fieldName: true }, orderBy: { orderIndex: 'asc' } },
+        },
+      }),
+    ]);
+
+    const buckets: Record<string, number> = {};
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      buckets[d.toISOString().slice(0, 10)] = 0;
+    }
+    for (const r of trend) {
+      if (r.submittedAt) {
+        const key = r.submittedAt.toISOString().slice(0, 10);
+        if (key in buckets) buckets[key]++;
+      }
+    }
+    const responseTrend = Object.entries(buckets).map(([date, count]) => ({ date, count }));
+
+    return {
+      totalForms,
+      activeForms,
+      totalResponses,
+      responseTrend,
+      totalInterviews,
+      activeInterviews,
+      totalCompletions: completionSum._sum.completedCount ?? 0,
+      recentForms,
+      recentInterviews,
+    };
   }
 
   async delete(formId: string, creatorId: string) {

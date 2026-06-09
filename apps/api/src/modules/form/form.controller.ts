@@ -24,6 +24,11 @@ export class FormController {
     return this.formService.getOverviewStats(userId);
   }
 
+  @Get('overview')
+  getOverview(@UserId() userId: string) {
+    return this.formService.getOverview(userId);
+  }
+
   @Get()
   findAll(@UserId() userId: string, @Query('page') page = '1') {
     return this.formService.findByCreator(userId, parseInt(page, 10));

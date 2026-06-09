@@ -17,7 +17,7 @@ export default function ThemeToggle() {
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        width: 28, height: 28, borderRadius: 6, cursor: 'pointer',
+        width: 28, height: 28, borderRadius: 10, cursor: 'pointer',
         background: 'transparent', border: '1px solid var(--border)',
         color: 'var(--text-tertiary)', transition: 'background 0.15s, color 0.15s',
       }}

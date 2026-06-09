@@ -115,8 +115,13 @@ export class CreatorBotService implements OnModuleInit {
       const token = payload.slice(5);
       const telegramId = ctx.from?.id?.toString();
       if (telegramId) {
-        const ok = await this.authService.consumeTelegramLinkToken(token, telegramId);
+        const ok = await this.authService.consumeTelegramLinkToken(token, telegramId, {
+          username:  ctx.from?.username,
+          firstName: ctx.from?.first_name,
+          lastName:  ctx.from?.last_name,
+        });
         if (ok) {
+          await this.botStateService.clearState(tid(ctx), 'CREATOR');
           await ctx.reply('✅ Your Telegram account has been linked to your FluxForms dashboard. You\'re all set!');
         } else {
           await ctx.reply('This link has expired or already been used. Go to your dashboard Settings to generate a new one.');

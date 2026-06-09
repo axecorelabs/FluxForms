@@ -10,7 +10,7 @@ import type {
   Form,
   FormsPage,
   FormResponsesPage,
-  OverviewStats,
+  OverviewData,
 } from './types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
@@ -44,8 +44,8 @@ export async function exchangeMagicToken(token: string): Promise<{ accessToken: 
   return publicPost('/auth/dashboard/exchange', { token });
 }
 
-export async function getProfile(): Promise<{ hasEmail: boolean; telegramLinked: boolean }> {
-  return request<{ hasEmail: boolean; telegramLinked: boolean }>('/auth/profile');
+export async function getProfile(): Promise<{ hasEmail: boolean; telegramLinked: boolean; email: string | null; displayName: string | null }> {
+  return request('/auth/profile');
 }
 
 export async function requestEmailAdd(email: string): Promise<{ message: string }> {
@@ -111,8 +111,8 @@ export async function getSession(sessionId: string): Promise<SessionDetail> {
   return request<SessionDetail>(`/sessions/${sessionId}`);
 }
 
-export async function getOverviewStats(): Promise<OverviewStats> {
-  return request<OverviewStats>('/forms/stats');
+export async function getOverview(): Promise<OverviewData> {
+  return request<OverviewData>('/forms/overview');
 }
 
 export async function getForms(page = 1): Promise<FormsPage> {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MessageSquare, ChevronRight } from 'lucide-react';
+import { MessageSquare, ChevronRight, Copy, Check } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getInterviews } from '@/lib/api';
 import type { Interview } from '@/lib/types';
@@ -30,6 +30,19 @@ const TYPE_LABELS: Record<string, string> = {
   CUSTOM: 'Custom',
 };
 
+function CopyCommand({ cmd }: { cmd: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { navigator.clipboard.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12, color: 'var(--text-secondary)', fontFamily: 'inherit' }}
+    >
+      <code style={{ color: 'var(--accent)', fontFamily: 'monospace' }}>{cmd}</code>
+      {copied ? <Check size={11} color="var(--success)" /> : <Copy size={11} />}
+    </button>
+  );
+}
+
 export default function InterviewsPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,23 +57,23 @@ export default function InterviewsPage() {
 
   return (
     <DashboardLayout>
-      <div style={{ maxWidth: 900 }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ marginBottom: 28 }}>
           <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
             Interviews
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Use <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 4, fontSize: 12 }}>/createinterview</code> in the Creator Bot to add a new interview.
+            Use <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 6, fontSize: 12 }}>/createinterview</code> in the Creator Bot to add a new interview.
           </p>
         </div>
 
         {error && (
-          <div style={{ color: 'var(--error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '12px 16px', fontSize: 13, marginBottom: 16 }}>
+          <div style={{ color: 'var(--error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 16px', fontSize: 13, marginBottom: 16 }}>
             {error}
           </div>
         )}
 
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
               {loading ? 'Loading…' : `${interviews.length} interview${interviews.length !== 1 ? 's' : ''}`}
@@ -73,11 +86,12 @@ export default function InterviewsPage() {
 
           {!loading && interviews.length === 0 && (
             <div style={{ padding: '48px 20px', textAlign: 'center' }}>
-              <MessageSquare size={32} color="var(--text-tertiary)" strokeWidth={1.5} style={{ marginBottom: 12 }} />
-              <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>No interviews yet</p>
-              <p style={{ color: 'var(--text-tertiary)', fontSize: 12, marginTop: 4 }}>
-                Send /createinterview to the Creator Bot to get started
+              <MessageSquare size={28} color="var(--text-tertiary)" strokeWidth={1.5} style={{ marginBottom: 14 }} />
+              <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>No interviews yet</p>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16, maxWidth: 360, margin: '0 auto 16px' }}>
+                Flux Interview uses AI to hold a natural conversation with your respondents and extract structured profiles automatically.
               </p>
+              <CopyCommand cmd="/createinterview" />
             </div>
           )}
 

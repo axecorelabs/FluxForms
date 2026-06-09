@@ -58,7 +58,7 @@ export default function ConnectTelegramPage() {
           </p>
         </div>
 
-        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 32, textAlign: 'center' }}>
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 32, textAlign: 'center' }}>
           {linked ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
@@ -80,14 +80,14 @@ export default function ConnectTelegramPage() {
               <p style={{ color: 'var(--error)', fontSize: 13, marginBottom: 16 }}>{error}</p>
               <button
                 onClick={generate}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
               >
                 <RotateCcw size={13} /> Try again
               </button>
             </div>
           ) : (
             <>
-              <div style={{ display: 'inline-block', padding: 16, background: '#ffffff', borderRadius: 12, marginBottom: 20 }}>
+              <div style={{ display: 'inline-block', padding: 16, background: '#ffffff', borderRadius: 16, marginBottom: 20 }}>
                 <QRCodeSVG value={deepLink} size={180} level="M" includeMargin={false} fgColor="#000000" />
               </div>
 
@@ -102,7 +102,7 @@ export default function ConnectTelegramPage() {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
                   background: 'var(--accent)', color: 'var(--accent-fg)',
-                  borderRadius: 8, padding: '10px 20px',
+                  borderRadius: 12, padding: '10px 20px',
                   fontSize: 13, fontWeight: 600, textDecoration: 'none',
                   marginBottom: 16,
                 }}
