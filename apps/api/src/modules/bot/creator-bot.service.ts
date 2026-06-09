@@ -588,8 +588,8 @@ export class CreatorBotService implements OnModuleInit {
     try {
       const form = await this.formService.findById(formId);
       const link = form.shareLink ?? `https://t.me/${process.env.TELEGRAM_FILLER_BOT_USERNAME}?start=${form.shareToken}`;
-      await ctx.reply(`📤 *Share link:*\n${link}`, { parse_mode: 'MarkdownV2' });
-    } catch { await ctx.reply('Could not retrieve share link\\.', { parse_mode: 'MarkdownV2' }); }
+      await ctx.reply(`📤 Share link:\n${link}`);
+    } catch { await ctx.reply('Could not retrieve share link. Please try again.'); }
   }
 
   private async confirmDelete(ctx: Context, formId: string) {

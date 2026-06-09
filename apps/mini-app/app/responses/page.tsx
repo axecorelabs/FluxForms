@@ -16,21 +16,9 @@ interface PageData { form: FormMeta; responses: Response[]; total: number; page:
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
 
-function exportCsv(form: FormMeta, responses: Response[]) {
-  const header = ['Submitted At', ...form.questions.map(q => q.text)].join(',');
-  const rows = responses.map(r => {
-    const date = r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '';
-    const values = form.questions.map(q => `"${String(r.answers[q.id] ?? '').replace(/"/g, '""')}"`);
-    return [`"${date}"`, ...values].join(',');
-  });
-  const csv = [header, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${form.title.replace(/[^a-z0-9]/gi, '_')}_responses.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+function exportCsv(formId: string, token: string) {
+  const url = `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'}/miniapp/forms/${formId}/responses.csv?token=${encodeURIComponent(token)}`;
+  window.Telegram?.WebApp.openLink(url);
 }
 
 export default function ResponsesPage() {
@@ -112,9 +100,9 @@ export default function ResponsesPage() {
           <div className="font-semibold text-gray-900 text-sm leading-tight">{form.title}</div>
           <div className="text-xs text-gray-400 mt-0.5">{total} response{total !== 1 ? 's' : ''}</div>
         </div>
-        {responses.length > 0 && (
+        {responses.length > 0 && token && (
           <button
-            onClick={() => exportCsv(form, responses)}
+            onClick={() => exportCsv(form.id, token)}
             className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium"
           >
             Export CSV

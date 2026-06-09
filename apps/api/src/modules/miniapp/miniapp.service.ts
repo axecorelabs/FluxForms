@@ -51,7 +51,7 @@ export class MiniAppService {
     return { accessToken };
   }
 
-  async getFormWithResponses(formId: string, creatorId: string, page = 1) {
+  async getFormWithResponses(formId: string, creatorId: string, page = 1, limit = 50) {
     const form = await this.prisma.form.findUnique({
       where: { id: formId },
       include: { questions: { orderBy: { orderIndex: 'asc' } } },
@@ -61,7 +61,6 @@ export class MiniAppService {
       throw new UnauthorizedException('Form not found or access denied');
     }
 
-    const limit = 50;
     const skip = (page - 1) * limit;
 
     const [responses, total] = await this.prisma.$transaction([
