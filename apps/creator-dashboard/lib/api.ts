@@ -193,6 +193,14 @@ export async function removeInterviewField(id: string, fieldId: string): Promise
   return request<void>(`/interviews/${id}/fields/${fieldId}`, { method: 'DELETE' });
 }
 
+export async function regenerateSummary(sessionId: string): Promise<string> {
+  return request<string>(`/sessions/${sessionId}/regenerate-summary`, { method: 'POST' });
+}
+
+export async function rerunExtraction(sessionId: string): Promise<{ status: string }> {
+  return request<{ status: string }>(`/sessions/${sessionId}/rerun-extraction`, { method: 'POST' });
+}
+
 // ── Form mutations ────────────────────────────────────────────────────────────
 
 export async function createForm(dto: { title: string; description?: string }): Promise<Form> {

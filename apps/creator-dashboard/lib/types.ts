@@ -4,6 +4,8 @@ export interface Interview {
   type: string;
   objective: string;
   context: string | null;
+  aiPersona: string | null;
+  maxTurns: number;
   status: 'DRAFT' | 'ACTIVE' | 'CLOSED' | 'ARCHIVED';
   completedCount: number;
   shareLink: string | null;
@@ -37,6 +39,8 @@ export interface InterviewSession {
   startedAt: string;
   completedAt: string | null;
   summary?: string | null;
+  extractionStatus?: 'PENDING' | 'PROCESSING' | 'DONE' | 'FAILED';
+  extractionError?: string | null;
   _count?: { messages: number };
   extractedProfile?: ExtractedEntity[];
 }

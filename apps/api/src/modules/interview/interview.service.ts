@@ -96,7 +96,6 @@ export class InterviewService {
 
   async update(id: string, creatorId: string, dto: UpdateInterviewDto) {
     await this.assertOwner(id, creatorId);
-    await this.assertDraft(id);
     return this.prisma.interview.update({
       where: { id },
       data: dto,

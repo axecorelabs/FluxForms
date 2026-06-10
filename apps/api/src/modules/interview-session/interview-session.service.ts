@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -96,11 +96,13 @@ export class InterviewSessionService {
     const newTurnIndex = messages.length;
     const systemPrompt = this.promptBuilder.buildConversationSystemPrompt(interview, session.turnCount);
 
-    // CALL 1 (blocking): AI reply — user waits for this
-    const { text: aiReply } = await this.llm.conductTurn(systemPrompt, history, userMessage);
+    // CALL 1 (blocking): AI reply + model-declared completion signal — user waits for this
+    const { text: aiReply, isComplete: modelSignalledComplete } =
+      await this.llm.conductTurnStructured(systemPrompt, history, userMessage);
 
     const newTurnCount = session.turnCount + 1;
-    const isComplete = newTurnCount >= interview.maxTurns || this.detectCompletion(aiReply);
+    // maxTurns is a hard safety cap; the model's own signal is the primary driver.
+    const isComplete = newTurnCount >= interview.maxTurns || modelSignalledComplete;
 
     await this.prisma.$transaction([
       this.prisma.interviewMessage.create({
@@ -174,7 +176,7 @@ export class InterviewSessionService {
     return { aiReply, sessionId, turnCount: newTurnCount, isComplete };
   }
 
-  async getSessionWithProfile(sessionId: string) {
+  async getSessionWithProfile(sessionId: string, creatorId: string) {
     const session = await this.prisma.interviewSession.findUnique({
       where: { id: sessionId },
       include: {
@@ -184,6 +186,7 @@ export class InterviewSessionService {
       },
     });
     if (!session) throw new NotFoundException('Session not found');
+    if (session.interview.creatorId !== creatorId) throw new ForbiddenException();
     return session;
   }
 
@@ -206,6 +209,103 @@ export class InterviewSessionService {
     });
   }
 
+  async regenerateSummary(sessionId: string, creatorId: string): Promise<string> {
+    const session = await this.prisma.interviewSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        messages: { orderBy: { turnIndex: 'asc' } },
+        extractedProfile: true,
+        interview: { include: { schemaFields: { orderBy: { orderIndex: 'asc' } } } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+
+    if (session.interview.creatorId !== creatorId) throw new ForbiddenException();
+
+    const transcript = session.messages
+      .map((m: { role: string; content: string }) =>
+        `${m.role === 'USER' ? 'User' : 'AI'}: ${m.content}`,
+      )
+      .join('\n\n');
+
+    const extractedFields = session.extractedProfile.map((e: { fieldName: string; value: unknown }) => ({
+      fieldName: e.fieldName,
+      displayName:
+        session.interview.schemaFields.find((f: { fieldName: string }) => f.fieldName === e.fieldName)?.displayName ??
+        e.fieldName,
+      value: e.value,
+    }));
+
+    const summaryPrompt = this.promptBuilder.buildSummaryPrompt(
+      session.interview,
+      extractedFields,
+      transcript,
+    );
+
+    const summary = await this.llm.generateSummary(summaryPrompt);
+
+    await this.prisma.interviewSession.update({
+      where: { id: sessionId },
+      data: { summary },
+    });
+
+    return summary;
+  }
+
+  async rerunExtraction(sessionId: string, creatorId: string): Promise<{ status: string }> {
+    const session = await this.prisma.interviewSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        messages: { orderBy: { turnIndex: 'asc' } },
+        interview: { include: { schemaFields: { orderBy: { orderIndex: 'asc' } } } },
+      },
+    });
+    if (!session) throw new NotFoundException('Session not found');
+    if (session.interview.creatorId !== creatorId) throw new ForbiddenException();
+    if (session.state !== 'COMPLETED') {
+      throw new BadRequestException('Only completed sessions can be re-extracted');
+    }
+
+    const serializedFields: SerializedField[] = session.interview.schemaFields.map(f => ({
+      fieldName: f.fieldName,
+      displayName: f.displayName,
+      fieldType: f.fieldType,
+      description: f.description,
+      isRequired: f.isRequired,
+      orderIndex: f.orderIndex,
+    }));
+
+    const fullHistory = session.messages.map((m: { role: string; content: string }) => ({
+      role: (m.role === 'USER' ? 'user' : 'assistant') as 'user' | 'assistant',
+      content: m.content,
+    }));
+
+    await this.prisma.interviewSession.update({
+      where: { id: sessionId },
+      data: { extractionStatus: 'PENDING', extractionError: null },
+    });
+
+    await this.extractionQueue.add(
+      JOBS.EXTRACT_ENTITIES,
+      {
+        sessionId,
+        interviewId: session.interviewId,
+        schemaFields: serializedFields,
+        fullHistory,
+        extractionSystemPrompt: this.promptBuilder.buildExtractionSystemPrompt(session.interview),
+        isFinal: true,
+      },
+      {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnFail: { count: 100 },
+        removeOnComplete: { count: 50 },
+      },
+    );
+
+    return { status: 'PENDING' };
+  }
+
   async interruptSession(sessionId: string, userTelegramId: string) {
     const session = await this.prisma.interviewSession.findUnique({ where: { id: sessionId } });
     if (!session || session.userTelegramId !== userTelegramId) return;
@@ -215,20 +315,5 @@ export class InterviewSessionService {
       where: { id: sessionId },
       data: { state: 'INTERRUPTED', interruptedAt: new Date() },
     });
-  }
-
-  private detectCompletion(aiReply: string): boolean {
-    const closingPhrases = [
-      'thank you for',
-      'thanks for taking',
-      'that concludes',
-      "we're done",
-      "we've covered",
-      'all done',
-      'interview is complete',
-      'conversation is complete',
-    ];
-    const lower = aiReply.toLowerCase();
-    return closingPhrases.some(p => lower.includes(p));
   }
 }

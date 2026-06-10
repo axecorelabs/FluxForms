@@ -309,6 +309,8 @@ model InterviewSession {
   messages         InterviewMessage[]
   extractedProfile ExtractedEntity[]
   summary          String?           @db.Text
+  extractionStatus ExtractionStatus  @default(PENDING) @map("extraction_status")
+  extractionError  String?           @map("extraction_error") @db.Text
 
   @@unique([interviewId, userTelegramId])
   @@index([interviewId, state])
@@ -320,6 +322,13 @@ enum InterviewSessionState {
   ACTIVE
   COMPLETED
   INTERRUPTED
+}
+
+enum ExtractionStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
 }
 
 // ─── Interview Messages ────────────────────────────────────────────────────────

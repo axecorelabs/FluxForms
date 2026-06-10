@@ -3,7 +3,7 @@ import { InterviewField } from '@prisma/client';
 import {
   OpenRouterProvider,
   ChatMessage,
-  ConversationTurnOutput,
+  StructuredTurnOutput,
   ExtractionOutput,
 } from './providers/openrouter.provider';
 
@@ -11,12 +11,17 @@ import {
 export class LLMService {
   constructor(private readonly openrouter: OpenRouterProvider) {}
 
-  async conductTurn(
+  /**
+   * Conversation turn that also returns whether the model considers the
+   * conversation complete. Used instead of brittle keyword-matching on the
+   * reply text.
+   */
+  async conductTurnStructured(
     systemPrompt: string,
     history: ChatMessage[],
     latestMessage: string,
-  ): Promise<ConversationTurnOutput> {
-    return this.openrouter.chat({
+  ): Promise<StructuredTurnOutput> {
+    return this.openrouter.chatStructured({
       systemPrompt,
       messageHistory: history,
       latestUserMessage: latestMessage,

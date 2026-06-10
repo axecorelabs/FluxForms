@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InterviewService, CreateInterviewDto, UpdateInterviewDto, AddFieldDto } from './interview.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,8 +29,10 @@ export class InterviewController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.interviewService.findById(id);
+  async findOne(@UserId() userId: string, @Param('id') id: string) {
+    const interview = await this.interviewService.findById(id);
+    if (interview.creatorId !== userId) throw new ForbiddenException();
+    return interview;
   }
 
   @Patch(':id')

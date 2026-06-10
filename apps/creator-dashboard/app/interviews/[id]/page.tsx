@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, Copy, Check, Download, Search, X, MessageSquare, Zap, Square, Trash2 } from 'lucide-react';
+import { ChevronLeft, Copy, Check, Download, Search, X, MessageSquare, Zap, Square, Trash2, RefreshCw, Settings, AlertTriangle, RotateCcw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { getInterview, getInterviewStats, getInterviewSessions, searchSessions, activateInterview, closeInterview, deleteInterview } from '@/lib/api';
+import { getInterview, getInterviewStats, getInterviewSessions, getSession, searchSessions, activateInterview, closeInterview, deleteInterview, regenerateSummary, rerunExtraction } from '@/lib/api';
 import type { Interview, InterviewStats, InterviewSession, SearchResult } from '@/lib/types';
 
 const STATE_DOT: Record<string, string> = {
@@ -34,7 +34,9 @@ function formatValue(v: unknown): string {
 
 // ── Profiles table ────────────────────────────────────────────────────────────
 
-function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSession[]; interviewTitle: string }) {
+function ProfilesTable({ sessions, interviewTitle, onSummaryRegenerated, onExtractionRerun }: { sessions: InterviewSession[]; interviewTitle: string; onSummaryRegenerated: (sessionId: string, summary: string) => void; onExtractionRerun: (sessionId: string) => void }) {
+  const [regenerating, setRegenerating] = useState<string | null>(null);
+  const [rerunning, setRerunning] = useState<string | null>(null);
   const completed = sessions.filter(s => s.state === 'COMPLETED');
 
   const fields = [...new Set(
@@ -125,8 +127,32 @@ function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSessio
                   onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
                   onClick={() => window.location.href = `/interviews/${s.id.split('/')[0]}/sessions/${s.id}`}
                 >
-                  <td style={{ padding: '12px 20px', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'nowrap' }}>
-                    {s.userTelegramId}
+                  <td style={{ padding: '12px 20px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    <div style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{s.userTelegramId}</div>
+                    {s.extractionStatus === 'FAILED' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setRerunning(s.id);
+                          try {
+                            await rerunExtraction(s.id);
+                            onExtractionRerun(s.id);
+                          } finally { setRerunning(null); }
+                        }}
+                        disabled={rerunning === s.id}
+                        title={s.extractionError ?? 'Extraction failed'}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, padding: '2px 7px', cursor: rerunning === s.id ? 'wait' : 'pointer', fontSize: 11, color: 'var(--error)', fontFamily: 'inherit' }}
+                      >
+                        {rerunning === s.id
+                          ? <><RotateCcw size={9} style={{ animation: 'spin 1s linear infinite' }} /> Queued…</>
+                          : <><AlertTriangle size={9} /> Extraction failed · Re-run</>}
+                      </button>
+                    )}
+                    {(s.extractionStatus === 'PENDING' || s.extractionStatus === 'PROCESSING') && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: 11, color: 'var(--text-tertiary)' }}>
+                        <RotateCcw size={9} style={{ animation: 'spin 1s linear infinite' }} /> Extracting…
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text-tertiary)', fontSize: 12, whiteSpace: 'nowrap' }}>
                     {formatDate(s.startedAt)}
@@ -136,9 +162,28 @@ function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSessio
                       {formatValue(map[f])}
                     </td>
                   ))}
-                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={s.summary ?? undefined}>
-                    {s.summary ? s.summary.slice(0, 120) + (s.summary.length > 120 ? '…' : '') : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  <td style={{ padding: '12px 16px', fontSize: 12, maxWidth: 280 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}
+                            title={s.summary ?? undefined}>
+                        {s.summary ? s.summary.slice(0, 120) + (s.summary.length > 120 ? '…' : '') : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                      </span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setRegenerating(s.id);
+                          try {
+                            const summary = await regenerateSummary(s.id);
+                            onSummaryRegenerated(s.id, summary);
+                          } finally { setRegenerating(null); }
+                        }}
+                        disabled={regenerating === s.id}
+                        title="Regenerate summary"
+                        style={{ background: 'none', border: 'none', cursor: regenerating === s.id ? 'wait' : 'pointer', padding: 3, color: 'var(--text-tertiary)', display: 'flex', flexShrink: 0 }}
+                      >
+                        <RefreshCw size={11} style={{ animation: regenerating === s.id ? 'spin 1s linear infinite' : 'none' }} />
+                      </button>
+                    </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <Link href={`/interviews/${s.id.split('/')[0]}/sessions/${s.id}`} onClick={(e: { stopPropagation(): void }) => e.stopPropagation()} style={{ color: 'var(--accent)', fontSize: 12, textDecoration: 'none' }}>
@@ -253,12 +298,46 @@ function InterviewDetailContent({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
   const [actioning, setActioning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const pollTimers = useRef<ReturnType<typeof setInterval>[]>([]);
 
   useEffect(() => {
     Promise.all([getInterview(id), getInterviewStats(id), getInterviewSessions(id)])
       .then(([iv, st, se]) => { setInterview(iv); setStats(st); setSessions(se); })
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Clear any in-flight extraction polls when leaving the page
+  useEffect(() => () => { pollTimers.current.forEach(clearInterval); }, []);
+
+  // Poll a session after a re-run until extraction settles (DONE/FAILED),
+  // then merge the fresh fields/summary/status into the row.
+  const pollExtraction = useCallback((sessionId: string) => {
+    let attempts = 0;
+    const timer = setInterval(async () => {
+      attempts++;
+      try {
+        const fresh = await getSession(sessionId);
+        const settled = fresh.extractionStatus === 'DONE' || fresh.extractionStatus === 'FAILED';
+        if (settled || attempts >= 20) {
+          clearInterval(timer);
+          pollTimers.current = pollTimers.current.filter(t => t !== timer);
+          setSessions(prev => prev.map(s => s.id === sessionId ? {
+            ...s,
+            extractionStatus: fresh.extractionStatus,
+            extractionError: fresh.extractionError,
+            summary: fresh.summary,
+            extractedProfile: fresh.extractedProfile,
+          } : s));
+        }
+      } catch {
+        if (attempts >= 20) {
+          clearInterval(timer);
+          pollTimers.current = pollTimers.current.filter(t => t !== timer);
+        }
+      }
+    }, 2500);
+    pollTimers.current.push(timer);
+  }, []);
 
   const copyLink = () => {
     if (!interview?.shareLink) return;
@@ -389,8 +468,18 @@ function InterviewDetailContent({ id }: { id: string }) {
                 Delete
               </button>
             )}
+
+            {/* Settings */}
+            <Link href={`/interviews/${id}/settings`} style={{ textDecoration: 'none' }}>
+              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}>
+                <Settings size={13} />
+                Settings
+              </button>
+            </Link>
           </div>
         </div>
+
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
         {actionError && (
           <div style={{ color: 'var(--error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 20 }}>
@@ -424,7 +513,17 @@ function InterviewDetailContent({ id }: { id: string }) {
         {/* Tab content */}
         <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           {tab === 'profiles'
-            ? <ProfilesTable sessions={sessions} interviewTitle={interview.title} />
+            ? <ProfilesTable
+                sessions={sessions}
+                interviewTitle={interview.title}
+                onSummaryRegenerated={(sid, summary) =>
+                  setSessions(prev => prev.map(s => s.id === sid ? { ...s, summary } : s))
+                }
+                onExtractionRerun={(sid) => {
+                  setSessions(prev => prev.map(s => s.id === sid ? { ...s, extractionStatus: 'PENDING' } : s));
+                  pollExtraction(sid);
+                }}
+              />
             : <SessionsList sessions={sessions} interviewId={id} />
           }
         </div>

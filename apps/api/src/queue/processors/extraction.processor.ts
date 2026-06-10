@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { InterviewField } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -26,6 +26,28 @@ export class ExtractionProcessor extends WorkerHost {
   async process(job: Job<ExtractionJobData>): Promise<void> {
     const { sessionId, interviewId, schemaFields, fullHistory, extractionSystemPrompt, isFinal } = job.data;
 
+    // A completed session must only be counted once toward completedCount and
+    // the creator's monthly usage. The live final turn counts it; a manual
+    // re-run of a session that already succeeded must NOT count it again.
+    // (A re-run after a FAILED extraction still counts, since the original
+    // run threw before reaching the increment.)
+    let alreadyCounted = false;
+
+    // Mark the final extraction as in-flight so the dashboard can distinguish
+    // "still working" from "failed".
+    if (isFinal) {
+      const existing = await this.prisma.interviewSession.findUnique({
+        where: { id: sessionId },
+        select: { extractionStatus: true },
+      });
+      alreadyCounted = existing?.extractionStatus === 'DONE';
+
+      await this.prisma.interviewSession.update({
+        where: { id: sessionId },
+        data: { extractionStatus: 'PROCESSING', extractionError: null },
+      });
+    }
+
     const conversationText = fullHistory
       .map((m: { role: 'user' | 'assistant'; content: string }) =>
         `${m.role === 'user' ? 'User' : 'AI'}: ${m.content}`,
@@ -38,9 +60,11 @@ export class ExtractionProcessor extends WorkerHost {
       extractionSystemPrompt,
     );
 
+    // No tool result means the extraction genuinely failed (LLM error, bad
+    // response, etc). Throw so BullMQ retries — never silently succeed, or we
+    // lose the respondent's data with no trace.
     if (!toolResult) {
-      this.logger.warn(`No tool result for session ${sessionId}`);
-      return;
+      throw new Error(`Extraction returned no tool result for session ${sessionId}`);
     }
 
     const upserts = schemaFields
@@ -91,14 +115,19 @@ export class ExtractionProcessor extends WorkerHost {
       });
 
       if (interview) {
-        await this.prisma.interview.update({
-          where: { id: interviewId },
-          data: { completedCount: { increment: 1 } },
-        });
+        if (!alreadyCounted) {
+          await this.prisma.interview.update({
+            where: { id: interviewId },
+            data: { completedCount: { increment: 1 } },
+          });
 
-        await this.subscriptionService.incrementResponseCount(interview.creatorId);
+          await this.subscriptionService.incrementResponseCount(interview.creatorId);
+        }
 
-        // Generate qualitative summary async — does not block the filler bot
+        // Generate qualitative summary. Non-fatal — extraction itself has
+        // already succeeded by this point, and the summary has its own
+        // regenerate path. We don't want a summary hiccup to mark the whole
+        // extraction FAILED.
         try {
           const extractedFields = schemaFields
             .filter((f: SerializedField) => toolResult[f.fieldName] !== null && toolResult[f.fieldName] !== undefined)
@@ -124,11 +153,39 @@ export class ExtractionProcessor extends WorkerHost {
           this.logger.log(`Summary generated for session ${sessionId}`);
         } catch (err) {
           this.logger.error(`Summary generation failed for session ${sessionId}`, err);
-          // Non-fatal — session is still complete, summary just won't be available
         }
       }
 
+      // Extraction proper (entities + embedding) succeeded.
+      await this.prisma.interviewSession.update({
+        where: { id: sessionId },
+        data: { extractionStatus: 'DONE', extractionError: null },
+      });
+
       this.logger.log(`Profile embedding stored for completed session ${sessionId}`);
+    }
+  }
+
+  @OnWorkerEvent('failed')
+  async onFailed(job: Job<ExtractionJobData>, err: Error): Promise<void> {
+    const { sessionId, isFinal } = job.data;
+    const attempts = job.opts.attempts ?? 1;
+    const exhausted = job.attemptsMade >= attempts;
+
+    this.logger.error(
+      `Extraction job ${job.id} failed (attempt ${job.attemptsMade}/${attempts}) for session ${sessionId}: ${err.message}`,
+    );
+
+    // Only flip the session to FAILED once retries are exhausted, and only for
+    // the final extraction — interim turn extractions will be superseded by
+    // later turns anyway.
+    if (isFinal && exhausted) {
+      await this.prisma.interviewSession
+        .update({
+          where: { id: sessionId },
+          data: { extractionStatus: 'FAILED', extractionError: err.message.slice(0, 1000) },
+        })
+        .catch(e => this.logger.error(`Could not mark session ${sessionId} extraction FAILED`, e));
     }
   }
 }

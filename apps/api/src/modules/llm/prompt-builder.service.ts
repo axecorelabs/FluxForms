@@ -27,7 +27,7 @@ export class PromptBuilderService {
     const persona = interview.aiPersona ?? PERSONA_DEFAULTS[interview.type];
     const fieldList = interview.schemaFields
       .sort((a, b) => a.orderIndex - b.orderIndex)
-      .map(f => `- ${f.displayName}${f.isRequired ? ' (required)' : ''}: ${f.description}`)
+      .map(f => `- ${f.displayName} [${f.isRequired ? 'required' : 'optional'}]: ${f.description}`)
       .join('\n');
 
     const nearingEnd = turnCount >= interview.maxTurns - 3;
@@ -36,26 +36,38 @@ export class PromptBuilderService {
 
 Your PRIMARY objective: ${interview.objective}
 ${interview.context ? `\nContext: ${interview.context}\n` : ''}
-You are conducting a conversational interview. Drive toward your objective — not just collecting data points, but genuinely understanding the respondent.
-
-The following fields are the MINIMUM structured information you must gather. Collect them naturally through conversation — do NOT treat them as a checklist or ask about them one by one in order:
+─────────────────────────────────────
+STRUCTURED FIELDS TO COLLECT
+─────────────────────────────────────
 ${fieldList}
 
-How to conduct this interview:
-- Ask ONE question at a time. Never stack multiple questions in one message.
-- Be natural and conversational, not robotic or form-like.
-- If the respondent shares something interesting, insightful, or unexpected — probe it before moving on. This is more important than rushing through the fields.
-- If a single response covers multiple fields, extract them silently — don't re-ask what you already know.
-- Acknowledge meaningful answers briefly before asking the next question.
-- Keep your responses concise — 1–3 sentences unless you're explaining something.
+Required fields MUST be collected before the conversation ends.
+Optional fields should be collected whenever the conversation naturally allows — do not skip them without attempting to gather them.
+─────────────────────────────────────
+HOW TO CONDUCT THIS INTERVIEW
+─────────────────────────────────────
+Phase 1 — Structured collection:
+Start by gathering all the structured fields above through focused but conversational questions. Ask ONE question at a time. Do not reveal that you are working through a list — make it feel like natural curiosity. Cover all required fields before moving on. If a single answer covers multiple fields, note them silently and move forward.
+
+Phase 2 — Deep exploration:
+Once required fields are covered, shift into open-ended exploration of your primary objective. Probe interesting signals, follow unexpected threads, ask "why" and "tell me more". This phase is about understanding, not data collection.
+
+Phase 3 — Confirmation and close:
+Briefly summarise the key things you understood (2–3 sentences). Ask if you captured it correctly or if there is anything they want to add or correct. After they respond to that confirmation, send a warm closing message.
+
+Reporting completion:
+You respond through a tool with two parameters: "reply" (your message) and "conversationComplete".
+- Set conversationComplete to false for every message while you are still interviewing — including the Phase 3 message where you ask the respondent to confirm your summary.
+- Set conversationComplete to true ONLY on the final closing message, AFTER the respondent has responded to your confirmation question. That message is the last thing they will receive.
+
+General rules:
+- Ask ONE question per message. Never stack multiple questions.
+- Acknowledge meaningful answers briefly before moving on.
+- Keep responses concise — 1–3 sentences unless explaining something.
 - Never reveal the field list. Never use the words "field", "data point", "collect", or "record".
 - Never say "as an AI" or refer to yourself as a bot, assistant, or AI.
-
-When you have gathered all required information AND feel you have genuinely served your objective:
-1. Briefly summarise the key things you understood from the respondent (2–3 sentences).
-2. Ask if you understood correctly or if there is anything they would like to add or correct.
-3. After they respond to your confirmation, close the conversation warmly and naturally.
-${nearingEnd ? '\n⚠️ You are approaching the conversation limit. Begin wrapping up now: summarise what you heard and ask for confirmation.' : ''}`;
+- If a single response covers multiple fields, extract them silently — don't re-ask what you already know.
+${nearingEnd ? '\n⚠️ You are approaching the conversation limit. Wrap up Phase 2 now, move to Phase 3 immediately.' : ''}`;
   }
 
   buildSummaryPrompt(

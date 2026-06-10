@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { CreatorBotService } from './creator-bot.service';
+import { CreatorFormFlow } from './creator-form.flow';
+import { CreatorInterviewFlow } from './creator-interview.flow';
 import { FillerBotService } from './filler-bot.service';
 import { FormModule } from '../form/form.module';
 import { QuestionModule } from '../question/question.module';
@@ -33,7 +35,7 @@ import { QUEUES } from '../../queue/queue.constants';
     EmailModule,
     BullModule.registerQueue({ name: QUEUES.NOTIFICATIONS }),
   ],
-  providers: [CreatorBotService, FillerBotService, NotificationProcessor],
+  providers: [CreatorBotService, CreatorFormFlow, CreatorInterviewFlow, FillerBotService, NotificationProcessor],
   exports: [CreatorBotService, FillerBotService],
 })
 export class BotModule {}

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
 import { InterviewSessionService } from './interview-session.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserId } from '../auth/decorators/user-id.decorator';
@@ -14,7 +14,17 @@ export class InterviewSessionController {
   }
 
   @Get('sessions/:sessionId')
-  getSession(@Param('sessionId') sessionId: string) {
-    return this.sessionService.getSessionWithProfile(sessionId);
+  getSession(@Param('sessionId') sessionId: string, @UserId() userId: string) {
+    return this.sessionService.getSessionWithProfile(sessionId, userId);
+  }
+
+  @Post('sessions/:sessionId/regenerate-summary')
+  regenerateSummary(@Param('sessionId') sessionId: string, @UserId() userId: string) {
+    return this.sessionService.regenerateSummary(sessionId, userId);
+  }
+
+  @Post('sessions/:sessionId/rerun-extraction')
+  rerunExtraction(@Param('sessionId') sessionId: string, @UserId() userId: string) {
+    return this.sessionService.rerunExtraction(sessionId, userId);
   }
 }
