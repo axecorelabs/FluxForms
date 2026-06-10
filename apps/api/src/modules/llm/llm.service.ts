@@ -59,7 +59,7 @@ Include a confidence score (0.0–1.0) alongside each value where possible.`;
 
   async generateOpeningMessage(
     systemPrompt: string,
-    objective: string,
+    _objective: string,
   ): Promise<string> {
     const result = await this.openrouter.chat({
       systemPrompt,
@@ -70,11 +70,23 @@ Include a confidence score (0.0–1.0) alongside each value where possible.`;
     return result.text;
   }
 
+  async generateSummary(summaryPrompt: string): Promise<string> {
+    const result = await this.openrouter.chat({
+      systemPrompt: summaryPrompt,
+      messageHistory: [],
+      latestUserMessage: 'Generate the summary now.',
+      maxTokens: 400,
+      temperature: 0.3,
+    });
+    return result.text;
+  }
+
   private fieldToJsonSchema(field: InterviewField): Record<string, unknown> {
     const base: Record<string, unknown> = { description: field.description };
 
     switch (field.fieldType) {
       case 'TEXT':
+      case 'EMAIL':
         return { ...base, type: ['string', 'null'] };
       case 'NUMBER':
       case 'RATING':

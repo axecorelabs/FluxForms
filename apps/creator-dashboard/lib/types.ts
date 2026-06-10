@@ -36,6 +36,7 @@ export interface InterviewSession {
   turnCount: number;
   startedAt: string;
   completedAt: string | null;
+  summary?: string | null;
   _count?: { messages: number };
   extractedProfile?: ExtractedEntity[];
 }

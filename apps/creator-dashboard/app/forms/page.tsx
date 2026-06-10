@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, ChevronRight, Copy, Check } from 'lucide-react';
+import { FileText, ChevronRight, Copy, Check, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getForms } from '@/lib/api';
 import type { Form } from '@/lib/types';
@@ -57,13 +57,26 @@ export default function FormsPage() {
   return (
     <DashboardLayout>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <div style={{ marginBottom: 28 }}>
-          <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
-            Forms
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Use <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 6, fontSize: 12 }}>/createform</code> in the Creator Bot to build a new form.
-          </p>
+        <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
+              Forms
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              Structured questionnaires filled via the Telegram bot.
+            </p>
+          </div>
+          <Link href="/forms/new" style={{ textDecoration: 'none' }}>
+            <button style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+            }}>
+              <Plus size={14} strokeWidth={2.5} />
+              New Form
+            </button>
+          </Link>
         </div>
 
         {error && (

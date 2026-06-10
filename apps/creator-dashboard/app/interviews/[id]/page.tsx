@@ -41,13 +41,14 @@ function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSessio
   )];
 
   const exportCSV = () => {
-    const headers = ['Respondent', 'Date', ...fields];
+    const headers = ['Respondent', 'Date', ...fields, 'Summary'];
     const rows = completed.map(s => {
       const map = Object.fromEntries((s.extractedProfile ?? []).map(e => [e.fieldName, e.value]));
       return [
         s.userTelegramId,
         formatDate(s.startedAt),
         ...fields.map(f => formatValue(map[f])),
+        s.summary ?? '',
       ];
     });
     const csv = [
@@ -106,6 +107,9 @@ function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSessio
                   {f.replace(/_/g, ' ')}
                 </th>
               ))}
+              <th style={{ padding: '10px 16px', textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: '1px solid var(--border)', minWidth: 240 }}>
+                Summary
+              </th>
               <th style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', width: 40 }} />
             </tr>
           </thead>
@@ -131,8 +135,12 @@ function ProfilesTable({ sessions, interviewTitle }: { sessions: InterviewSessio
                       {formatValue(map[f])}
                     </td>
                   ))}
+                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={s.summary ?? undefined}>
+                    {s.summary ? s.summary.slice(0, 120) + (s.summary.length > 120 ? '…' : '') : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <Link href={`/interviews/${s.id.split('/')[0]}/sessions/${s.id}`} onClick={e => e.stopPropagation()} style={{ color: 'var(--accent)', fontSize: 12, textDecoration: 'none' }}>
+                    <Link href={`/interviews/${s.id.split('/')[0]}/sessions/${s.id}`} onClick={(e: { stopPropagation(): void }) => e.stopPropagation()} style={{ color: 'var(--accent)', fontSize: 12, textDecoration: 'none' }}>
                       View
                     </Link>
                   </td>

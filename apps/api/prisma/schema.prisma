@@ -287,6 +287,7 @@ enum FieldType {
   ARRAY
   RATING
   ENUM
+  EMAIL
 }
 
 // ─── Interview Sessions ────────────────────────────────────────────────────────
@@ -307,6 +308,7 @@ model InterviewSession {
   interview        Interview         @relation(fields: [interviewId], references: [id])
   messages         InterviewMessage[]
   extractedProfile ExtractedEntity[]
+  summary          String?           @db.Text
 
   @@unique([interviewId, userTelegramId])
   @@index([interviewId, state])

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MessageSquare, ChevronRight, Copy, Check } from 'lucide-react';
+import { MessageSquare, ChevronRight, Copy, Check, Plus } from 'lucide-react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { getInterviews } from '@/lib/api';
 import type { Interview } from '@/lib/types';
@@ -58,13 +58,26 @@ export default function InterviewsPage() {
   return (
     <DashboardLayout>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
-        <div style={{ marginBottom: 28 }}>
-          <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
-            Interviews
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Use <code style={{ background: 'var(--bg-elevated)', padding: '1px 5px', borderRadius: 6, fontSize: 12 }}>/createinterview</code> in the Creator Bot to add a new interview.
-          </p>
+        <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)', marginBottom: 4 }}>
+              Interviews
+            </h1>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              AI-driven conversations that extract structured profiles automatically.
+            </p>
+          </div>
+          <Link href="/interviews/new" style={{ textDecoration: 'none' }}>
+            <button style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--accent)', color: '#fff', border: 'none',
+              borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+            }}>
+              <Plus size={14} strokeWidth={2.5} />
+              New Interview
+            </button>
+          </Link>
         </div>
 
         {error && (

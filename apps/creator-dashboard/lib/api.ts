@@ -3,11 +3,13 @@
 import { getToken, clearToken } from './auth';
 import type {
   Interview,
+  InterviewField,
   InterviewStats,
   InterviewSession,
   SessionDetail,
   SearchResult,
   Form,
+  FormQuestion,
   FormsPage,
   FormResponsesPage,
   OverviewData,
@@ -133,4 +135,67 @@ export async function searchSessions(
 ): Promise<{ results: SearchResult[] }> {
   const params = new URLSearchParams({ q: query });
   return request<{ results: SearchResult[] }>(`/interviews/${interviewId}/search?${params}`);
+}
+
+// ── Interview mutations ───────────────────────────────────────────────────────
+
+export async function createInterview(dto: {
+  title: string;
+  type?: string;
+  objective: string;
+  context?: string;
+  aiPersona?: string;
+  maxTurns?: number;
+}): Promise<Interview> {
+  return request<Interview>('/interviews', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export async function updateInterview(
+  id: string,
+  dto: { title?: string; objective?: string; context?: string; aiPersona?: string; maxTurns?: number },
+): Promise<Interview> {
+  return request<Interview>(`/interviews/${id}`, { method: 'PATCH', body: JSON.stringify(dto) });
+}
+
+export async function activateInterview(id: string): Promise<Interview> {
+  return request<Interview>(`/interviews/${id}/activate`, { method: 'POST' });
+}
+
+export async function addInterviewField(
+  id: string,
+  dto: {
+    fieldName: string;
+    displayName: string;
+    fieldType: string;
+    description: string;
+    isRequired?: boolean;
+    orderIndex: number;
+  },
+): Promise<InterviewField> {
+  return request<InterviewField>(`/interviews/${id}/fields`, { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export async function removeInterviewField(id: string, fieldId: string): Promise<void> {
+  return request<void>(`/interviews/${id}/fields/${fieldId}`, { method: 'DELETE' });
+}
+
+// ── Form mutations ────────────────────────────────────────────────────────────
+
+export async function createForm(dto: { title: string; description?: string }): Promise<Form> {
+  return request<Form>('/forms', { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export async function addFormQuestion(
+  formId: string,
+  dto: { text: string; type: string; options?: string[] },
+): Promise<FormQuestion> {
+  return request<FormQuestion>(`/forms/${formId}/questions`, { method: 'POST', body: JSON.stringify(dto) });
+}
+
+export async function deleteFormQuestion(formId: string, questionId: string): Promise<void> {
+  return request<void>(`/forms/${formId}/questions/${questionId}`, { method: 'DELETE' });
+}
+
+export async function activateForm(id: string): Promise<Form> {
+  return request<Form>(`/forms/${id}/activate`, { method: 'POST' });
 }

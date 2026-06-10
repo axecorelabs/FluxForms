@@ -11,6 +11,7 @@ export interface ConversationTurnInput {
   messageHistory: ChatMessage[];
   latestUserMessage: string;
   maxTokens?: number;
+  temperature?: number;
 }
 
 export interface ConversationTurnOutput {
@@ -74,7 +75,7 @@ export class OpenRouterProvider {
         model: CHAT_MODEL,
         messages,
         max_tokens: input.maxTokens ?? 400,
-        temperature: 0.7,
+        temperature: input.temperature ?? 0.7,
         stream: false,
       });
 

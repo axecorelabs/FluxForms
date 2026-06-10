@@ -5,6 +5,7 @@ import { InterviewField } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LLMService } from '../../modules/llm/llm.service';
 import { EmbeddingService } from '../../modules/llm/embedding.service';
+import { PromptBuilderService } from '../../modules/llm/prompt-builder.service';
 import { SubscriptionService } from '../../modules/subscription/subscription.service';
 import { QUEUES, ExtractionJobData, SerializedField } from '../queue.constants';
 
@@ -16,6 +17,7 @@ export class ExtractionProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly llm: LLMService,
     private readonly embedding: EmbeddingService,
+    private readonly promptBuilder: PromptBuilderService,
     private readonly subscriptionService: SubscriptionService,
   ) {
     super();
@@ -85,16 +87,45 @@ export class ExtractionProcessor extends WorkerHost {
 
       const interview = await this.prisma.interview.findUnique({
         where: { id: interviewId },
-        select: { creatorId: true },
+        include: { schemaFields: { orderBy: { orderIndex: 'asc' } } },
       });
 
-      await this.prisma.interview.update({
-        where: { id: interviewId },
-        data: { completedCount: { increment: 1 } },
-      });
+      if (interview) {
+        await this.prisma.interview.update({
+          where: { id: interviewId },
+          data: { completedCount: { increment: 1 } },
+        });
 
-      if (interview?.creatorId) {
         await this.subscriptionService.incrementResponseCount(interview.creatorId);
+
+        // Generate qualitative summary async — does not block the filler bot
+        try {
+          const extractedFields = schemaFields
+            .filter((f: SerializedField) => toolResult[f.fieldName] !== null && toolResult[f.fieldName] !== undefined)
+            .map((f: SerializedField) => ({
+              fieldName: f.fieldName,
+              displayName: f.displayName,
+              value: toolResult[f.fieldName] as unknown,
+            }));
+
+          const summaryPrompt = this.promptBuilder.buildSummaryPrompt(
+            interview,
+            extractedFields,
+            conversationText,
+          );
+
+          const summary = await this.llm.generateSummary(summaryPrompt);
+
+          await this.prisma.interviewSession.update({
+            where: { id: sessionId },
+            data: { summary },
+          });
+
+          this.logger.log(`Summary generated for session ${sessionId}`);
+        } catch (err) {
+          this.logger.error(`Summary generation failed for session ${sessionId}`, err);
+          // Non-fatal — session is still complete, summary just won't be available
+        }
       }
 
       this.logger.log(`Profile embedding stored for completed session ${sessionId}`);
