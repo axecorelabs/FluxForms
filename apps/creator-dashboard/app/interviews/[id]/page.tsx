@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft, Copy, Check, Download, Search, X, MessageSquare } from 'lucide-react';
+import { ChevronLeft, Copy, Check, Download, Search, X, MessageSquare, Zap, Square, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/DashboardLayout';
-import { getInterview, getInterviewStats, getInterviewSessions, searchSessions } from '@/lib/api';
+import { getInterview, getInterviewStats, getInterviewSessions, searchSessions, activateInterview, closeInterview, deleteInterview } from '@/lib/api';
 import type { Interview, InterviewStats, InterviewSession, SearchResult } from '@/lib/types';
 
 const STATE_DOT: Record<string, string> = {
@@ -243,12 +244,15 @@ function SessionsList({ sessions, interviewId }: { sessions: InterviewSession[];
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function InterviewDetailContent({ id }: { id: string }) {
+  const router = useRouter();
   const [interview, setInterview] = useState<Interview | null>(null);
   const [stats, setStats] = useState<InterviewStats | null>(null);
   const [sessions, setSessions] = useState<InterviewSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'profiles' | 'sessions'>('profiles');
   const [copied, setCopied] = useState(false);
+  const [actioning, setActioning] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getInterview(id), getInterviewStats(id), getInterviewSessions(id)])
@@ -261,6 +265,39 @@ function InterviewDetailContent({ id }: { id: string }) {
     navigator.clipboard.writeText(interview.shareLink);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleActivate = async () => {
+    setActioning(true); setActionError(null);
+    try {
+      const updated = await activateInterview(id);
+      setInterview(updated);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Failed to activate');
+    } finally { setActioning(false); }
+  };
+
+  const handleClose = async () => {
+    if (!confirm('Close this interview? Respondents will no longer be able to start new conversations.')) return;
+    setActioning(true); setActionError(null);
+    try {
+      const updated = await closeInterview(id);
+      setInterview(updated);
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Failed to close');
+    } finally { setActioning(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm('Delete this interview? This cannot be undone.')) return;
+    setActioning(true); setActionError(null);
+    try {
+      await deleteInterview(id);
+      router.push('/interviews');
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Failed to delete');
+      setActioning(false);
+    }
   };
 
   if (loading) return (
@@ -293,7 +330,7 @@ function InterviewDetailContent({ id }: { id: string }) {
         </Link>
 
         {/* Title row */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: actionError ? 12 : 24, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[interview.status] ?? 'var(--text-tertiary)', flexShrink: 0 }} />
             <h1 className="brand-heading" style={{ fontSize: 22, color: 'var(--text)' }}>{interview.title}</h1>
@@ -302,20 +339,64 @@ function InterviewDetailContent({ id }: { id: string }) {
             </span>
           </div>
 
-          {/* Share link */}
-          {interview.shareLink && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', flexShrink: 0 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Share</span>
-              <code style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {interview.shareLink}
-              </code>
-              <button onClick={copyLink} style={{ display: 'flex', alignItems: 'center', gap: 4, background: copied ? 'rgba(52,211,153,0.12)' : 'var(--bg-elevated)', border: '1px solid var(--border)', color: copied ? 'var(--success)' : 'var(--text-secondary)', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', transition: 'all 0.15s' }}>
-                {copied ? <Check size={11} /> : <Copy size={11} />}
-                {copied ? 'Copied' : 'Copy'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+            {/* Share link — only when active */}
+            {interview.shareLink && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Share</span>
+                <code style={{ fontSize: 12, color: 'var(--text-secondary)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {interview.shareLink}
+                </code>
+                <button onClick={copyLink} style={{ display: 'flex', alignItems: 'center', gap: 4, background: copied ? 'rgba(52,211,153,0.12)' : 'var(--bg-elevated)', border: '1px solid var(--border)', color: copied ? 'var(--success)' : 'var(--text-secondary)', padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontFamily: 'inherit', transition: 'all 0.15s' }}>
+                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            )}
+
+            {/* Activate — DRAFT only */}
+            {interview.status === 'DRAFT' && (
+              <button
+                disabled={actioning}
+                onClick={handleActivate}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: actioning ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: actioning ? 0.6 : 1 }}
+              >
+                <Zap size={13} strokeWidth={2.5} />
+                {actioning ? 'Activating…' : 'Activate'}
               </button>
-            </div>
-          )}
+            )}
+
+            {/* Close — ACTIVE only */}
+            {interview.status === 'ACTIVE' && (
+              <button
+                disabled={actioning}
+                onClick={handleClose}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 16px', cursor: actioning ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit', opacity: actioning ? 0.6 : 1 }}
+              >
+                <Square size={13} strokeWidth={2.5} />
+                {actioning ? 'Closing…' : 'Close'}
+              </button>
+            )}
+
+            {/* Delete — DRAFT only */}
+            {interview.status === 'DRAFT' && (
+              <button
+                disabled={actioning}
+                onClick={handleDelete}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--bg-surface)', color: 'var(--error)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '8px 16px', cursor: actioning ? 'not-allowed' : 'pointer', fontSize: 13, fontFamily: 'inherit', opacity: actioning ? 0.6 : 1 }}
+              >
+                <Trash2 size={13} />
+                Delete
+              </button>
+            )}
+          </div>
         </div>
+
+        {actionError && (
+          <div style={{ color: 'var(--error)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 20 }}>
+            {actionError}
+          </div>
+        )}
 
         {/* Stat cards */}
         {stats && (

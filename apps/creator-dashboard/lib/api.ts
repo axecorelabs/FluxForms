@@ -167,6 +167,14 @@ export async function activateInterview(id: string): Promise<Interview> {
   return request<Interview>(`/interviews/${id}/activate`, { method: 'POST' });
 }
 
+export async function closeInterview(id: string): Promise<Interview> {
+  return request<Interview>(`/interviews/${id}/close`, { method: 'POST' });
+}
+
+export async function deleteInterview(id: string): Promise<void> {
+  return request<void>(`/interviews/${id}`, { method: 'DELETE' });
+}
+
 export async function addInterviewField(
   id: string,
   dto: {

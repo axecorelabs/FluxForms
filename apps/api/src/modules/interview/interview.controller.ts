@@ -57,6 +57,11 @@ export class InterviewController {
     return this.interviewService.close(id, userId);
   }
 
+  @Delete(':id')
+  delete(@UserId() userId: string, @Param('id') id: string) {
+    return this.interviewService.delete(id, userId);
+  }
+
   @Get(':id/stats')
   getStats(@UserId() userId: string, @Param('id') id: string) {
     return this.interviewService.getStats(id, userId);
