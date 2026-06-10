@@ -43,6 +43,26 @@ function CopyCommand({ cmd }: { cmd: string }) {
   );
 }
 
+function CopyLink({ link }: { link: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={e => { e.preventDefault(); e.stopPropagation(); navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        background: copied ? 'rgba(52,211,153,0.1)' : 'var(--bg-elevated)',
+        border: `1px solid ${copied ? 'rgba(52,211,153,0.3)' : 'var(--border)'}`,
+        borderRadius: 8, padding: '4px 10px', cursor: 'pointer',
+        fontSize: 12, color: copied ? 'var(--success)' : 'var(--text-secondary)',
+        fontFamily: 'inherit', transition: 'all 0.15s', flexShrink: 0,
+      }}
+    >
+      {copied ? <Check size={11} /> : <Copy size={11} />}
+      {copied ? 'Copied' : 'Copy link'}
+    </button>
+  );
+}
+
 export default function InterviewsPage() {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +150,8 @@ export default function InterviewsPage() {
                     &nbsp;·&nbsp;{iv.schemaFields.length} field{iv.schemaFields.length !== 1 ? 's' : ''}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 'auto' }}>
+                {iv.shareLink && <CopyLink link={iv.shareLink} />}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                     {iv.completedCount}
                   </div>
