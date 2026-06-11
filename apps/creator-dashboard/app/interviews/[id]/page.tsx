@@ -34,7 +34,7 @@ function formatValue(v: unknown): string {
 
 // ── Profiles table ────────────────────────────────────────────────────────────
 
-function ProfilesTable({ sessions, interviewTitle, onSummaryRegenerated, onExtractionRerun }: { sessions: InterviewSession[]; interviewTitle: string; onSummaryRegenerated: (sessionId: string, summary: string) => void; onExtractionRerun: (sessionId: string) => void }) {
+function ProfilesTable({ sessions, interviewId, interviewTitle, onSummaryRegenerated, onExtractionRerun }: { sessions: InterviewSession[]; interviewId: string; interviewTitle: string; onSummaryRegenerated: (sessionId: string, summary: string) => void; onExtractionRerun: (sessionId: string) => void }) {
   const [regenerating, setRegenerating] = useState<string | null>(null);
   const [rerunning, setRerunning] = useState<string | null>(null);
   const completed = sessions.filter(s => s.state === 'COMPLETED');
@@ -125,7 +125,7 @@ function ProfilesTable({ sessions, interviewTitle, onSummaryRegenerated, onExtra
                   style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.12s' }}
                   onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = 'var(--bg-elevated)'}
                   onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = 'transparent'}
-                  onClick={() => window.location.href = `/interviews/${s.id.split('/')[0]}/sessions/${s.id}`}
+                  onClick={() => window.location.href = `/interviews/${interviewId}/sessions/${s.id}`}
                 >
                   <td style={{ padding: '12px 20px', fontSize: 12, whiteSpace: 'nowrap' }}>
                     <div style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{s.userTelegramId}</div>
@@ -186,7 +186,7 @@ function ProfilesTable({ sessions, interviewTitle, onSummaryRegenerated, onExtra
                     </div>
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <Link href={`/interviews/${s.id.split('/')[0]}/sessions/${s.id}`} onClick={(e: { stopPropagation(): void }) => e.stopPropagation()} style={{ color: 'var(--accent)', fontSize: 12, textDecoration: 'none' }}>
+                    <Link href={`/interviews/${interviewId}/sessions/${s.id}`} onClick={(e: { stopPropagation(): void }) => e.stopPropagation()} style={{ color: 'var(--accent)', fontSize: 12, textDecoration: 'none' }}>
                       View
                     </Link>
                   </td>
@@ -535,6 +535,7 @@ function InterviewDetailContent({ id }: { id: string }) {
           {tab === 'profiles'
             ? <ProfilesTable
                 sessions={sessions}
+                interviewId={id}
                 interviewTitle={interview.title}
                 onSummaryRegenerated={(sid, summary) =>
                   setSessions(prev => prev.map(s => s.id === sid ? { ...s, summary } : s))
