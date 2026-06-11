@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, FileText, X } from 'lucide-react';
 import AuthGuard from '@/components/AuthGuard';
 import Sidebar from '@/components/Sidebar';
 import { getSession } from '@/lib/api';
@@ -87,6 +87,7 @@ const STATE_BADGE: Record<string, { color: string; bg: string }> = {
 function SessionViewerContent({ interviewId, sessionId }: { interviewId: string; sessionId: string }) {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
   useEffect(() => {
     getSession(sessionId)
@@ -125,6 +126,22 @@ function SessionViewerContent({ interviewId, sessionId }: { interviewId: string;
                   {session.turnCount} turns &nbsp;·&nbsp; {formatDate(session.startedAt)}
                   {session.completedAt && ` → ${formatDate(session.completedAt)}`}
                 </span>
+                {session.summary && (
+                  <button
+                    onClick={() => setSummaryOpen(o => !o)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 6,
+                      background: summaryOpen ? 'var(--accent)' : 'var(--bg-elevated)',
+                      color: summaryOpen ? '#fff' : 'var(--text-secondary)',
+                      border: `1px solid ${summaryOpen ? 'var(--accent)' : 'var(--border)'}`,
+                      borderRadius: 8, padding: '5px 12px', cursor: 'pointer',
+                      fontSize: 12, fontFamily: 'inherit', transition: 'all 0.15s', flexShrink: 0,
+                    }}
+                  >
+                    <FileText size={12} strokeWidth={2} />
+                    Summary
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -154,39 +171,64 @@ function SessionViewerContent({ interviewId, sessionId }: { interviewId: string;
                 )}
               </div>
 
-              {/* Extracted profile */}
-              <div style={{ width: 300, flexShrink: 0, overflowY: 'auto', background: 'var(--bg-surface)' }}>
-                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Extracted Profile
-                  </span>
-                  <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-                    {entities.length} field{entities.length !== 1 ? 's' : ''}
-                  </span>
+              {/* Extracted profile + summary overlay */}
+              <div style={{ width: 300, flexShrink: 0, position: 'relative', overflow: 'hidden', background: 'var(--bg-surface)' }}>
+                {/* Scrollable profile content */}
+                <div style={{ height: '100%', overflowY: 'auto' }}>
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Extracted Profile
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                      {entities.length} field{entities.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {entities.length === 0 && (
+                    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>
+                      {session.state === 'ACTIVE' ? 'Extraction in progress…' : 'No entities extracted.'}
+                    </div>
+                  )}
+
+                  {entities.map((e, i) => <EntityCard key={i} entity={e} />)}
+
+                  {entities.length > 0 && (
+                    <details style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
+                      <summary style={{ fontSize: 12, color: 'var(--text-tertiary)', cursor: 'pointer', userSelect: 'none' }}>
+                        Raw JSON
+                      </summary>
+                      <pre style={{
+                        marginTop: 8, fontSize: 11, color: 'var(--text-secondary)',
+                        overflowX: 'auto', lineHeight: 1.5,
+                        background: 'var(--bg-base)', borderRadius: 10,
+                        padding: '10px 12px', border: '1px solid var(--border)',
+                      }}>
+                        {JSON.stringify(entities, null, 2)}
+                      </pre>
+                    </details>
+                  )}
                 </div>
 
-                {entities.length === 0 && (
-                  <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>
-                    {session.state === 'ACTIVE' ? 'Extraction in progress…' : 'No entities extracted.'}
+                {/* Summary overlay — covers the profile panel when open */}
+                {summaryOpen && session.summary && (
+                  <div style={{ position: 'absolute', inset: 0, zIndex: 10, display: 'flex', flexDirection: 'column', background: 'var(--bg-surface)' }}>
+                    <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Summary
+                      </span>
+                      <button
+                        onClick={() => setSummaryOpen(false)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-tertiary)', display: 'flex', borderRadius: 6 }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px' }}>
+                      <p style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>
+                        {session.summary}
+                      </p>
+                    </div>
                   </div>
-                )}
-
-                {entities.map((e, i) => <EntityCard key={i} entity={e} />)}
-
-                {entities.length > 0 && (
-                  <details style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-                    <summary style={{ fontSize: 12, color: 'var(--text-tertiary)', cursor: 'pointer', userSelect: 'none' }}>
-                      Raw JSON
-                    </summary>
-                    <pre style={{
-                      marginTop: 8, fontSize: 11, color: 'var(--text-secondary)',
-                      overflowX: 'auto', lineHeight: 1.5,
-                      background: 'var(--bg-base)', borderRadius: 10,
-                      padding: '10px 12px', border: '1px solid var(--border)',
-                    }}>
-                      {JSON.stringify(entities, null, 2)}
-                    </pre>
-                  </details>
                 )}
               </div>
             </div>

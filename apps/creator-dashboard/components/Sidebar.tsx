@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -19,6 +19,8 @@ import { useTheme } from 'next-themes';
 import { clearToken } from '@/lib/auth';
 import { getProfile } from '@/lib/api';
 
+const PROFILE_CACHE_KEY = 'fluxforms_sidebar_profile';
+
 const NAV = [
   { href: '/',           icon: LayoutDashboard, label: 'Overview' },
   { href: '/interviews', icon: MessageSquare,    label: 'Interviews' },
@@ -33,11 +35,27 @@ export default function Sidebar() {
   const [email, setEmail] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
 
+  // Read cached profile synchronously before first paint — eliminates the flicker
+  // where name/email briefly disappears while the fetch is in-flight.
+  useLayoutEffect(() => {
+    try {
+      const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+      if (raw) {
+        const { email: e, displayName: dn } = JSON.parse(raw);
+        setEmail(e ?? null);
+        setDisplayName(dn ?? null);
+      }
+    } catch {}
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     getProfile().then(p => {
       setEmail(p.email);
       setDisplayName(p.displayName);
+      try {
+        localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ email: p.email, displayName: p.displayName }));
+      } catch {}
     }).catch(() => {});
   }, []);
 

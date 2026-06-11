@@ -31,9 +31,15 @@ export class JwtAuthGuard implements CanActivate {
     const cached = await this.redis.get(cacheKey);
 
     if (!cached) {
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true } });
-      if (!user) throw new UnauthorizedException('Account not found — please sign in again');
-      await this.redis.set(cacheKey, '1', 'EX', USER_EXISTS_TTL_S);
+      try {
+        const user = await this.prisma.user.findUnique({ where: { id: payload.sub }, select: { id: true } });
+        if (!user) throw new UnauthorizedException('Account not found — please sign in again');
+        await this.redis.set(cacheKey, '1', 'EX', USER_EXISTS_TTL_S);
+      } catch (err) {
+        // Rethrow auth failures (deleted account); on DB connectivity errors fall
+        // through and trust the JWT signature — better degraded than fully down.
+        if (err instanceof UnauthorizedException) throw err;
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
