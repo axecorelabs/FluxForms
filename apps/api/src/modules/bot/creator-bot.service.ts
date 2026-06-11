@@ -48,6 +48,7 @@ export class CreatorBotService implements OnModuleInit {
     this.bot.command('createinterview', ctx => this.interviewFlow.onCreateInterviewCommand(ctx));
     this.bot.command('myinterviews',    ctx => this.interviewFlow.onMyInterviews(ctx));
     this.bot.command('dashboard',       ctx => this.onDashboardCommand(ctx));
+    this.bot.command('login',           ctx => this.onLoginCommand(ctx));
     this.bot.command('plan',            ctx => this.onPlanCommand(ctx));
     this.bot.command('addemail',        ctx => this.onAddEmailCommand(ctx));
     this.bot.on('callback_query:data', ctx => this.onCallback(ctx));
@@ -121,6 +122,28 @@ export class CreatorBotService implements OnModuleInit {
         `📧 *One more thing — please verify your email*\n\nWe use it to send you response notifications and important account updates\\.\n\nReply with your email address to get started:`,
         { parse_mode: 'MarkdownV2' },
       );
+    }
+  }
+
+  private async onLoginCommand(ctx: Context) {
+    const raw = (ctx.match as string | undefined)?.trim();
+    if (!raw) {
+      return ctx.reply("Paste your sign-in code from the dashboard login page here, e.g.:\n/login your-code");
+    }
+    const token = raw.startsWith('login_') ? raw.slice(6) : raw;
+    const telegramId = ctx.from?.id?.toString();
+    if (!telegramId) return;
+
+    const ok = await this.dashboardAuthService.consumeLoginChallenge(token, telegramId, {
+      username:  ctx.from?.username,
+      firstName: ctx.from?.first_name,
+      lastName:  ctx.from?.last_name,
+    });
+
+    if (ok) {
+      await ctx.reply("✅ You're signed in! Head back to the dashboard page to continue.");
+    } else {
+      await ctx.reply("This sign-in code has expired or already been used. Refresh the login page to get a new one.");
     }
   }
 

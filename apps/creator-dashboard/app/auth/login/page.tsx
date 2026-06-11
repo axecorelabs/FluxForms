@@ -130,6 +130,7 @@ type TgState =
 
 function TelegramPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: (accessToken: string, hasEmail: boolean) => void }) {
   const [tg, setTg] = useState<TgState>({ phase: 'loading' });
+  const [copied, setCopied] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
@@ -217,6 +218,34 @@ function TelegramPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: (
           <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', opacity: 0.7, animation: 'pulse 1.4s ease-in-out infinite' }} />
             <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Waiting for scan…</span>
+          </div>
+
+          {/* Manual fallback — Telegram sometimes doesn't re-send /start for already-started bots */}
+          <div style={{ marginTop: 20, padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 10, border: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 8 }}>
+              Telegram opened but nothing happened?
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              Copy this code and send it to the bot manually:
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <code style={{ flex: 1, background: 'var(--bg-base)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', fontSize: 11, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                /login {tg.token}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`/login ${tg.token}`);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                style={{ flexShrink: 0, background: copied ? 'var(--success)' : 'var(--accent)', color: 'var(--accent-fg)', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.2s' }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>
+              Open <a href={tg.deepLink} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>@{new URL(tg.deepLink).pathname.slice(1)}</a> in Telegram, paste and send.
+            </p>
           </div>
         </>
       )}
