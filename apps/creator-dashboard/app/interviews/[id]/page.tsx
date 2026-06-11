@@ -401,7 +401,56 @@ function InterviewDetailContent({ id }: { id: string }) {
 
   if (loading) return (
     <DashboardLayout>
-      <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>Loading…</div>
+      <style>{`@keyframes skelPulse { 0%,100%{opacity:1} 50%{opacity:0.45} }`}</style>
+      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+        {/* Breadcrumb */}
+        <div style={{ width: 90, height: 14, borderRadius: 6, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite', marginBottom: 20 }} />
+
+        {/* Title row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28, gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite' }} />
+            <div style={{ width: 220, height: 26, borderRadius: 8, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.05s' }} />
+            <div style={{ width: 56, height: 22, borderRadius: 6, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.1s' }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ width: 96, height: 36, borderRadius: 10, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.15s' }} />
+            <div style={{ width: 80, height: 36, borderRadius: 10, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.2s' }} />
+          </div>
+        </div>
+
+        {/* Stat cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+          {[0, 0.08, 0.16, 0.24].map((delay, i) => (
+            <div key={i} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 20px 18px' }}>
+              <div style={{ width: 48, height: 32, borderRadius: 8, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay}s`, marginBottom: 10 }} />
+              <div style={{ width: 100, height: 12, borderRadius: 4, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay + 0.05}s` }} />
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ width: 196, height: 36, borderRadius: 10, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.1s', marginBottom: 16 }} />
+
+        {/* Content card */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+          {/* Toolbar */}
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 80, height: 14, borderRadius: 5, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite' }} />
+            <div style={{ width: 40, height: 12, borderRadius: 5, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.05s' }} />
+            <div style={{ marginLeft: 'auto', width: 90, height: 30, borderRadius: 8, background: 'var(--bg-elevated)', animation: 'skelPulse 1.6s ease-in-out infinite 0.1s' }} />
+          </div>
+          {/* Rows */}
+          {[0, 0.07, 0.14, 0.21, 0.28].map((delay, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderBottom: i < 4 ? '1px solid var(--border)' : 'none' }}>
+              <div style={{ width: 120, height: 13, borderRadius: 4, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay}s` }} />
+              <div style={{ width: 80, height: 13, borderRadius: 4, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay + 0.04}s` }} />
+              <div style={{ flex: 1, height: 13, borderRadius: 4, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay + 0.08}s` }} />
+              <div style={{ width: 60, height: 13, borderRadius: 4, background: 'var(--bg-elevated)', animation: `skelPulse 1.6s ease-in-out infinite ${delay + 0.12}s` }} />
+            </div>
+          ))}
+        </div>
+      </div>
     </DashboardLayout>
   );
 
