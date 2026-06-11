@@ -17,6 +17,27 @@ const OTP_TTL_S     = 10 * 60;  // 10 minutes
 const LINK_TTL_S    = 15 * 60;  // 15 minutes
 const MAX_ATTEMPTS  = 5;
 
+// Atomically verifies an OTP stored as a Redis Hash {hash, attempts}.
+// Returns [status, extra]:
+//   [-1, 0]  → key missing/expired
+//   [-2, 0]  → locked (attempts >= max)
+//   [ 1, 0]  → correct — key deleted
+//   [ 0, N]  → wrong — N attempts remaining after this one
+const CONSUME_OTP_SCRIPT = `
+  local data = redis.call('HMGET', KEYS[1], 'hash', 'attempts')
+  if data[1] == false then return {-1, 0} end
+  local stored_hash = data[1]
+  local attempts = tonumber(data[2]) or 0
+  local max_attempts = tonumber(ARGV[2])
+  if attempts >= max_attempts then return {-2, 0} end
+  if ARGV[1] == stored_hash then
+    redis.call('DEL', KEYS[1])
+    return {1, 0}
+  end
+  local new_attempts = redis.call('HINCRBY', KEYS[1], 'attempts', 1)
+  return {0, max_attempts - new_attempts}
+`;
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -157,8 +178,12 @@ export class AuthService {
     telegramId: string,
     profile?: { username?: string; firstName?: string; lastName?: string },
   ): Promise<boolean> {
-    const userId = await this.redis.get(`tg_link:${token}`);
+    // GETDEL atomically reads and deletes — single-use guarantee (fix #4)
+    const userId = await this.redis.getdel(`tg_link:${token}`);
     if (!userId) return false; // expired or already consumed
+
+    // Clean up user-pointer key (token already consumed above)
+    await this.redis.del(`tg_link_user:${userId}`);
 
     const existing = await this.prisma.user.findUnique({ where: { telegramId } });
     if (existing && existing.id !== userId) {
@@ -176,8 +201,6 @@ export class AuthService {
       },
     });
 
-    // Consume both keys atomically-ish (single-use guarantee)
-    await this.redis.del(`tg_link:${token}`, `tg_link_user:${userId}`);
     return true;
   }
 
@@ -204,29 +227,31 @@ export class AuthService {
   private async issueOtp(email: string, firstName?: string): Promise<void> {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hash = createHash('sha256').update(code).digest('hex');
-    await this.redis.set(`otp:${email}`, JSON.stringify({ hash, attempts: 0 }), 'EX', OTP_TTL_S);
+    // MULTI/EXEC atomically sets both hash fields and the TTL
+    await this.redis.multi()
+      .hset(`otp:${email}`, 'hash', hash, 'attempts', '0')
+      .expire(`otp:${email}`, OTP_TTL_S)
+      .exec();
     await this.emailService.sendVerificationCode(email, code, firstName);
   }
 
   private async consumeOtp(email: string, code: string): Promise<void> {
-    const raw = await this.redis.get(`otp:${email}`);
-    if (!raw) throw new BadRequestException('Code expired or not found. Request a new one.');
-
-    const stored: { hash: string; attempts: number } = JSON.parse(raw);
-
-    if (stored.attempts >= MAX_ATTEMPTS) {
-      throw new BadRequestException('Too many incorrect attempts. Request a new code.');
-    }
-
     const inputHash = createHash('sha256').update(code.trim()).digest('hex');
-    if (inputHash !== stored.hash) {
-      const attempts = stored.attempts + 1;
-      // KEEPTTL preserves the remaining TTL on overwrite
-      await this.redis.set(`otp:${email}`, JSON.stringify({ ...stored, attempts }), 'KEEPTTL');
-      const remaining = MAX_ATTEMPTS - attempts;
-      throw new BadRequestException(`Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`);
-    }
+    // Single atomic Lua call — no race between attempt-increment and verify-delete (fixes #2 & #3)
+    const result = await this.redis.eval(
+      CONSUME_OTP_SCRIPT, 1, `otp:${email}`, inputHash, String(MAX_ATTEMPTS),
+    ) as [number, number];
 
-    await this.redis.del(`otp:${email}`);
+    const [status, remaining] = result;
+
+    if (status === -1) throw new BadRequestException('Code expired or not found. Request a new one.');
+    if (status === -2) throw new BadRequestException('Too many incorrect attempts. Request a new code.');
+    if (status === 0) {
+      const msg = remaining > 0
+        ? `Incorrect code. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+        : 'Incorrect code. No more attempts — request a new code.';
+      throw new BadRequestException(msg);
+    }
+    // status === 1: correct, key deleted atomically
   }
 }
