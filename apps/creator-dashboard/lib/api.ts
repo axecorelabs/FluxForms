@@ -95,6 +95,22 @@ export async function requestTelegramLink(): Promise<{ token: string; deepLink: 
   return request<{ token: string; deepLink: string }>('/auth/telegram/link-request', { method: 'POST' });
 }
 
+export async function createTelegramChallenge(): Promise<{ token: string; deepLink: string }> {
+  const res = await fetch(`${API_BASE}/auth/dashboard/telegram-challenge`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to create login challenge');
+  return res.json();
+}
+
+export async function pollTelegramChallenge(token: string): Promise<{
+  status: 'pending' | 'authenticated' | 'expired';
+  accessToken?: string;
+  hasEmail?: boolean;
+}> {
+  const res = await fetch(`${API_BASE}/auth/dashboard/telegram-challenge/${token}`);
+  if (!res.ok) throw new Error('Failed to poll challenge');
+  return res.json();
+}
+
 export async function getTelegramLinkStatus(): Promise<{ linked: boolean }> {
   return request<{ linked: boolean }>('/auth/telegram/link-status');
 }

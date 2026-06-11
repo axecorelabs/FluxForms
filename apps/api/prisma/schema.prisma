@@ -22,13 +22,13 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  forms               Form[]
-  sessions            Session[]
-  payments            Payment[]
-  interviews          Interview[]
-  subscription        Subscription?
-  dashboardTokens     DashboardToken[]
-  telegramLinkTokens  TelegramLinkToken[]
+  forms                    Form[]
+  sessions                 Session[]
+  payments                 Payment[]
+  interviews               Interview[]
+  subscription             Subscription?
+  dashboardTokens          DashboardToken[]
+  telegramLinkTokens       TelegramLinkToken[]
 
   @@map("users")
 }
@@ -453,3 +453,4 @@ model TelegramLinkToken {
   @@index([token])
   @@map("telegram_link_tokens")
 }
+

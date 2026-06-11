@@ -92,6 +92,24 @@ export class CreatorBotService implements OnModuleInit {
       return;
     }
 
+    if (payload?.startsWith('login_')) {
+      const token = payload.slice(6);
+      const telegramId = ctx.from?.id?.toString();
+      if (telegramId) {
+        const ok = await this.dashboardAuthService.consumeLoginChallenge(token, telegramId, {
+          username:  ctx.from?.username,
+          firstName: ctx.from?.first_name,
+          lastName:  ctx.from?.last_name,
+        });
+        if (ok) {
+          await ctx.reply("✅ You're signed in! Head back to the dashboard page to continue.");
+        } else {
+          await ctx.reply("This QR code has expired or already been used. Refresh the login page and try again.");
+        }
+      }
+      return;
+    }
+
     const user = await this.upsertUser(ctx);
     await ctx.reply(
       `👋 *Welcome to FluxForms\\!*\n\nCreate conversational forms and AI interviews your audience fills directly inside Telegram\\.\n\n*Forms*\n/createform – Build a new form\n/myforms – View your forms\n\n*AI Interviews*\n/createinterview – Build an AI interview\n/myinterviews – View your interviews\n\n*Drafts*\n/drafts – View all unsaved drafts\n\n*Account*\n/addemail – Add or update your email\n/plan – View your plan and usage\n/dashboard – Open your creator dashboard\n/cancel – Cancel current action`,

@@ -1,9 +1,10 @@
 'use client';
 
+import { QRCodeSVG } from 'qrcode.react';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Zap, ArrowRight, RotateCcw } from 'lucide-react';
-import { exchangeMagicToken, requestOtp, verifyOtp } from '@/lib/api';
+import { Zap, ArrowRight, RotateCcw, ExternalLink } from 'lucide-react';
+import { exchangeMagicToken, requestOtp, verifyOtp, createTelegramChallenge, pollTelegramChallenge } from '@/lib/api';
 import { setToken, isAuthenticated } from '@/lib/auth';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
@@ -17,7 +18,7 @@ const card: React.CSSProperties = {
   width: '100%',
 };
 
-const input: React.CSSProperties = {
+const inputStyle: React.CSSProperties = {
   width: '100%',
   background: 'var(--bg-elevated)',
   border: '1px solid var(--border)',
@@ -46,6 +47,25 @@ const btn = (disabled: boolean): React.CSSProperties => ({
   transition: 'background 0.15s',
   fontFamily: 'inherit',
 });
+
+const outlineBtn: React.CSSProperties = {
+  width: '100%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 6,
+  background: 'transparent',
+  color: 'var(--text-secondary)',
+  border: '1px solid var(--border)',
+  borderRadius: 12,
+  padding: '11px 16px',
+  fontSize: 14,
+  fontWeight: 500,
+  cursor: 'pointer',
+  transition: 'background 0.12s, border-color 0.12s',
+  fontFamily: 'inherit',
+  textDecoration: 'none',
+};
 
 // ── OTP input — 6 individual boxes ───────────────────────────────────────────
 
@@ -101,12 +121,128 @@ function OtpBoxes({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
+// ── Telegram QR panel ─────────────────────────────────────────────────────────
+
+type TgState =
+  | { phase: 'loading' }
+  | { phase: 'ready'; token: string; deepLink: string }
+  | { phase: 'expired' };
+
+function TelegramPanel({ onBack, onSuccess }: { onBack: () => void; onSuccess: (accessToken: string, hasEmail: boolean) => void }) {
+  const [tg, setTg] = useState<TgState>({ phase: 'loading' });
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  const start = async () => {
+    setTg({ phase: 'loading' });
+    stopPolling();
+    try {
+      const { token, deepLink } = await createTelegramChallenge();
+      setTg({ phase: 'ready', token, deepLink });
+
+      pollRef.current = setInterval(async () => {
+        try {
+          const result = await pollTelegramChallenge(token);
+          if (result.status === 'authenticated') {
+            stopPolling();
+            onSuccess(result.accessToken!, result.hasEmail ?? false);
+          } else if (result.status === 'expired') {
+            stopPolling();
+            setTg({ phase: 'expired' });
+          }
+        } catch { /* ignore transient poll errors */ }
+      }, 2000);
+    } catch {
+      setTg({ phase: 'expired' });
+    }
+  };
+
+  useEffect(() => { start(); return () => stopPolling(); }, []);
+
+  return (
+    <>
+      <h1 className="brand-heading" style={{ fontSize: 20, color: 'var(--text)', textAlign: 'center', marginBottom: 6 }}>
+        Sign in with Telegram
+      </h1>
+
+      {tg.phase === 'loading' && (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 28 }}>
+            Generating your QR code…
+          </p>
+          <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          </div>
+        </>
+      )}
+
+      {tg.phase === 'expired' && (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 28 }}>
+            This QR code has expired.
+          </p>
+          <button onClick={start} style={btn(false)}>
+            <RotateCcw size={14} /> Generate new QR
+          </button>
+        </>
+      )}
+
+      {tg.phase === 'ready' && (
+        <>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 24 }}>
+            Open Telegram and scan this code, or tap the button below on mobile.
+          </p>
+
+          {/* QR code — white background for contrast */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{ background: '#fff', borderRadius: 12, padding: 16, border: '1px solid var(--border)' }}>
+              <QRCodeSVG value={tg.deepLink} size={180} />
+            </div>
+          </div>
+
+          {/* Open in Telegram (useful on mobile) */}
+          <a
+            href={tg.deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={outlineBtn}
+          >
+            <ExternalLink size={14} /> Open in Telegram
+          </a>
+
+          {/* Waiting indicator */}
+          <div style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', opacity: 0.7, animation: 'pulse 1.4s ease-in-out infinite' }} />
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Waiting for scan…</span>
+          </div>
+        </>
+      )}
+
+      <button
+        onClick={onBack}
+        style={{ marginTop: 24, background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: 12, cursor: 'pointer', width: '100%', fontFamily: 'inherit' }}
+      >
+        Use email instead
+      </button>
+
+      <style>{`
+        @keyframes spin  { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+      `}</style>
+    </>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
 
+  const [mode, setMode] = useState<'email' | 'telegram'>('email');
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
@@ -114,7 +250,7 @@ function LoginInner() {
   const [error, setError] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
-  // Handle legacy magic link tokens
+  // Handle magic link tokens from bot
   useEffect(() => {
     if (isAuthenticated()) { router.replace('/'); return; }
     const token = params.get('token');
@@ -128,7 +264,6 @@ function LoginInner() {
     }
   }, [params, router]);
 
-  // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
@@ -167,13 +302,17 @@ function LoginInner() {
     }
   };
 
-  // Auto-submit when 6 digits entered
   useEffect(() => {
     if (step === 'otp' && otp.replace(/\D/g, '').length === 6) {
       verify();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [otp]);
+
+  const handleTelegramSuccess = (accessToken: string, hasEmail: boolean) => {
+    setToken(accessToken);
+    router.replace(hasEmail ? '/' : '/auth/add-email');
+  };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
@@ -185,7 +324,12 @@ function LoginInner() {
           </div>
         </div>
 
-        {step === 'email' ? (
+        {mode === 'telegram' ? (
+          <TelegramPanel
+            onBack={() => { setMode('email'); setError(''); }}
+            onSuccess={handleTelegramSuccess}
+          />
+        ) : step === 'email' ? (
           <>
             <h1 className="brand-heading" style={{ fontSize: 20, color: 'var(--text)', textAlign: 'center', marginBottom: 6 }}>
               Sign in or create an account
@@ -201,7 +345,7 @@ function LoginInner() {
                 onChange={e => setEmail(e.target.value)}
                 autoFocus
                 required
-                style={input}
+                style={inputStyle}
                 onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
                 onBlur={e => (e.target.style.borderColor = 'var(--border)')}
               />
@@ -209,6 +353,24 @@ function LoginInner() {
                 {loading ? 'Sending…' : <><span>Send code</span><ArrowRight size={14} /></>}
               </button>
             </form>
+
+            {/* Divider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>or</span>
+              <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            </div>
+
+            {/* Telegram sign-in */}
+            <button onClick={() => setMode('telegram')} style={outlineBtn}>
+              Already use the Telegram bot? Sign in with Telegram
+            </button>
+
+            {error && (
+              <div style={{ marginTop: 16, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: 'var(--error)' }}>
+                {error}
+              </div>
+            )}
           </>
         ) : (
           <>
@@ -249,19 +411,14 @@ function LoginInner() {
                 {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
               </button>
             </div>
+
+            {error && (
+              <div style={{ marginTop: 16, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: 'var(--error)' }}>
+                {error}
+              </div>
+            )}
           </>
         )}
-
-        {error && (
-          <div style={{ marginTop: 16, padding: '10px 12px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 10, fontSize: 12, color: 'var(--error)' }}>
-            {error}
-          </div>
-        )}
-
-        <p style={{ marginTop: 24, textAlign: 'center', fontSize: 12, color: 'var(--text-tertiary)' }}>
-          Already use the Telegram bot?{' '}
-          <span style={{ color: 'var(--text-secondary)' }}>Use /dashboard to get a sign-in link.</span>
-        </p>
       </div>
     </div>
   );

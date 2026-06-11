@@ -3,6 +3,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { PaymentModule } from './modules/payment/payment.module';
@@ -20,6 +21,7 @@ import { MiniAppModule } from './modules/miniapp/miniapp.module';
 
 @Module({
   imports: [
+    RedisModule,
     EventEmitterModule.forRoot(),
     BullModule.forRootAsync({
       useFactory: () => {

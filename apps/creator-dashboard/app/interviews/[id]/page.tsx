@@ -301,9 +301,29 @@ function InterviewDetailContent({ id }: { id: string }) {
   const pollTimers = useRef<ReturnType<typeof setInterval>[]>([]);
 
   useEffect(() => {
-    Promise.all([getInterview(id), getInterviewStats(id), getInterviewSessions(id)])
-      .then(([iv, st, se]) => { setInterview(iv); setStats(st); setSessions(se); })
-      .finally(() => setLoading(false));
+    let mounted = true;
+    (async () => {
+      try {
+        const [iv, st, se] = await Promise.all([
+          getInterview(id),
+          getInterviewStats(id),
+          getInterviewSessions(id),
+        ]);
+        if (!mounted) return;
+        setInterview(iv);
+        setStats(st);
+        setSessions(se);
+      } catch (err) {
+        // If any request fails (e.g. 404), show the not-found state.
+        if (!mounted) return;
+        setInterview(null);
+        setStats(null);
+        setSessions([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
   }, [id]);
 
   // Clear any in-flight extraction polls when leaving the page
